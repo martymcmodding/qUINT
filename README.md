@@ -27,6 +27,8 @@ Setup
 	- [folder] Shaders 
 		- [file] qUINT files
 
+- Open the `Shaders` folder you just put the files in and delete any `.fx` (not `.fxh`!) file you don't need, so in case you don't require the bloom shader, delete `qUINT_bloom.fx`.
+
 Contents
 ------------------------
 
