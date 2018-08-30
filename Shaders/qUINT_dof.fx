@@ -1,13 +1,17 @@
 /*=============================================================================
 
 	ReShade 3 effect file
-        visit facebook.com/MartyMcModding for news/updates
+    github.com/martymcmodding
 
-        Advanced Depth of Field "ADOF" 4.2.1 
-        by Marty McFly / P.Gilcher
-        part of qUINT shader library for ReShade 3
+	Support me:
+   		paypal.me/mcflypg
+   		patreon.com/mcflypg
 
-        CC BY-NC-ND 3.0 licensed.
+   	Advanced Depth of Field "ADOF"
+    by Marty McFly / P.Gilcher
+    part of qUINT shader library for ReShade 3
+
+    CC BY-NC-ND 3.0 licensed.
 
 =============================================================================*/
 
@@ -23,7 +27,7 @@
 //------------------------------------------------------------------
 //Enables chromatic aberration at bokeh shape borders.
 #ifndef ADOF_CHROMATIC_ABERRATION_ENABLE
- #define ADOF_CHROMATIC_ABERRATION_ENABLE          1	  //[0 or 1]
+ #define ADOF_CHROMATIC_ABERRATION_ENABLE          0	  //[0 or 1]
 #endif
 
 /*=============================================================================
@@ -315,7 +319,7 @@ float CircleOfConfusion(float2 texcoord, bool aggressiveLeakReduction)
 	scenecoc = (handdepth < FPS_HAND_BLUR_CUTOFF_DIST * 1e-4) ? 0.0 : scenecoc;
 #endif //FPS_HAND_BLUR_CUTOFF_CHECK
 
-	return scenecoc;
+	return 1; //scenecoc;
 }
 
 void ShapeRoundness(inout float2 sampleOffset, in float roundness)
@@ -458,13 +462,14 @@ float4 PS_DoF_Main(in ADOF_VSOUT IN) : SV_Target0
 	BokehSum *= weightSum;
 	BokehMax *= weightSum;
 #endif
-	[fastopt]
+
+	[loop]
     for (int iVertices = 0; iVertices < iADOF_ShapeVertices && iVertices < 10; iVertices++)
     {
-        [fastopt]
+        [loop]
         for(float iRings = 1; iRings <= nRings && iRings < 26; iRings++)
         {
-            [fastopt]
+            [loop]
             for(float iSamplesPerRing = 0; iSamplesPerRing < iRings && iSamplesPerRing < 26; iSamplesPerRing++)
             {
                 float2 sampleOffset = lerp(IN.offset0.xy,IN.offset0.zw,iSamplesPerRing/iRings);
@@ -476,8 +481,8 @@ float4 PS_DoF_Main(in ADOF_VSOUT IN) : SV_Target0
 #if (ADOF_OPTICAL_VIGNETTE_ENABLE != 0)
                 OpticalVignette(sampleOffset.xy * iRings/nRings, centerVec, sampleWeight);
 #endif
-                sampleBokeh.rgb 	*= sampleWeight;
-                weightSum 	+= sampleWeight;
+                sampleBokeh.rgb *= sampleWeight;
+                weightSum 		+= sampleWeight;
                 BokehSum 		+= sampleBokeh;
                 BokehMax 		= max(BokehMax,sampleBokeh);
             }
@@ -656,7 +661,7 @@ technique ADOF
         VertexShader = VS_ADOF;
         PixelShader  = PS_DoF_Gauss1;
         RenderTarget = qUINT::CommonTex1;
-    }        
+    }      
 #if(ADOF_CHROMATIC_ABERRATION_ENABLE != 0)
     pass
     {

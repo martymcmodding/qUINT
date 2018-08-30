@@ -1,13 +1,17 @@
 /*=============================================================================
 
 	ReShade 3 effect file
-        visit facebook.com/MartyMcModding for news/updates
+    github.com/martymcmodding
 
-        Ambient Obscurance with Indirect Lighting "MXAO" 4.0.160 
-        by Marty McFly / P.Gilcher
-        part of qUINT shader library for ReShade 3
+	Support me:
+   		paypal.me/mcflypg
+   		patreon.com/mcflypg
 
-        CC BY-NC-ND 3.0 licensed.
+    Ambient Obscurance with Indirect Lighting "MXAO"
+    by Marty McFly / P.Gilcher
+    part of qUINT shader library for ReShade 3
+
+    CC BY-NC-ND 3.0 licensed.
 
 =============================================================================*/
 

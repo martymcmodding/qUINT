@@ -1,13 +1,17 @@
 /*=============================================================================
 
-	    ReShade 3 effect file
-        visit facebook.com/MartyMcModding for news/updates
+	ReShade 3 effect file
+    github.com/martymcmodding
 
-        Lightroom 1.6.259 
-        by Marty McFly / P.Gilcher
-        part of qUINT shader library for ReShade 3
+	Support me:
+   		paypal.me/mcflypg
+   		patreon.com/mcflypg
 
-        CC BY-NC-ND 3.0 licensed.
+    Lightroom 
+    by Marty McFly / P.Gilcher
+    part of qUINT shader library for ReShade 3
+
+    CC BY-NC-ND 3.0 licensed.
 
 =============================================================================*/
 

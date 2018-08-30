@@ -1,9 +1,13 @@
 /*=============================================================================
 
 	ReShade 3 effect file
-    visit facebook.com/MartyMcModding for news/updates
+    github.com/martymcmodding
 
-    Simple Bloom 1.0.014
+	Support me:
+   		paypal.me/mcflypg
+   		patreon.com/mcflypg
+
+    Simple Bloom
     by Marty McFly / P.Gilcher
     part of qUINT shader library for ReShade 3
 
@@ -28,14 +32,14 @@ uniform float BLOOM_INTENSITY <
 	ui_min = 0.00; ui_max = 10.00;
 	ui_label = "Bloom Intensity";
 	ui_tooltip = "Scales bloom brightness.";
-> = 1.0;
+> = 6.0;
 
 uniform float BLOOM_CURVE <
 	ui_type = "drag";
-	ui_min = 0.00; ui_max = 5.00;
+	ui_min = 0.00; ui_max = 10.00;
 	ui_label = "Bloom Curve";
 	ui_tooltip = "Higher values limit bloom to bright light sources only.";
-> = 2.75;
+> = 5.0;
 
 uniform float BLOOM_SAT <
 	ui_type = "drag";
@@ -56,43 +60,43 @@ uniform float BLOOM_LAYER_MULT_1 <
 	ui_min = 0.00; ui_max = 1.00;
 	ui_label = "Bloom Layer 1 Intensity";
 	ui_tooltip = "Intensity of this bloom layer. 1 is sharpest layer, 7 the most blurry.";
-> = 0.1;
+> = 0.3;
 uniform float BLOOM_LAYER_MULT_2 <
 	ui_type = "drag";
 	ui_min = 0.00; ui_max = 1.00;
 	ui_label = "Bloom Layer 2 Intensity";
 	ui_tooltip = "Intensity of this bloom layer. 1 is sharpest layer, 7 the most blurry.";
-> = 0.2;
+> = 0.1;
 uniform float BLOOM_LAYER_MULT_3 <
 	ui_type = "drag";
 	ui_min = 0.00; ui_max = 1.00;
 	ui_label = "Bloom Layer 3 Intensity";
 	ui_tooltip = "Intensity of this bloom layer. 1 is sharpest layer, 7 the most blurry.";
-> = 0.3;
+> = 0.15;
 uniform float BLOOM_LAYER_MULT_4 <
 	ui_type = "drag";
 	ui_min = 0.00; ui_max = 1.00;
 	ui_label = "Bloom Layer 4 Intensity";
 	ui_tooltip = "Intensity of this bloom layer. 1 is sharpest layer, 7 the most blurry.";
-> = 0.4;
+> = 0.3;
 uniform float BLOOM_LAYER_MULT_5 <
 	ui_type = "drag";
 	ui_min = 0.00; ui_max = 1.00;
 	ui_label = "Bloom Layer 5 Intensity";
 	ui_tooltip = "Intensity of this bloom layer. 1 is sharpest layer, 7 the most blurry.";
-> = 0.5;
+> = 1.0;
 uniform float BLOOM_LAYER_MULT_6 <
 	ui_type = "drag";
 	ui_min = 0.00; ui_max = 1.00;
 	ui_label = "Bloom Layer 6 Intensity";
 	ui_tooltip = "Intensity of this bloom layer. 1 is sharpest layer, 7 the most blurry.";
-> = 0.6;
+> = 1.0;
 uniform float BLOOM_LAYER_MULT_7 <
 	ui_type = "drag";
 	ui_min = 0.00; ui_max = 1.00;
 	ui_label = "Bloom Layer 7 Intensity";
 	ui_tooltip = "Intensity of this bloom layer. 1 is sharpest layer, 7 the most blurry.";
-> = 0.7;
+> = 0.0;
 uniform float BLOOM_ADAPT_STRENGTH <
 	ui_type = "drag";
 	ui_min = 0.00; ui_max = 1.00;
@@ -101,22 +105,22 @@ uniform float BLOOM_ADAPT_STRENGTH <
 > = 0.0;
 uniform float BLOOM_ADAPT_EXPOSURE <
 	ui_type = "drag";
-	ui_min = -10.00; ui_max = 10.00;
+	ui_min = -5.00; ui_max = 5.00;
 	ui_label = "Bloom Scene Exposure Bias";
 	ui_tooltip = "qUINT bloom employs eye adaptation to tune bloom intensity for scene differences.\nThis parameter adjusts the final scene exposure.";
 > = 0.0;
 uniform float BLOOM_ADAPT_SPEED <
 	ui_type = "drag";
-	ui_min = 0.00; ui_max = 10.00;
+	ui_min = 0.50; ui_max = 10.00;
 	ui_label = "Bloom Scene Adaptation Speed";
 	ui_tooltip = "Eye adaptation data is created by exponential moving average with last frame data.\nThis parameter controls the adjustment speed.\nHigher parameters let the image adjust more quickly.";
-> = 0.0;
+> = 10.0;
 uniform float BLOOM_TONEMAP_COMPRESSION <
 	ui_type = "drag";
 	ui_min = 0.00; ui_max = 10.00;
 	ui_label = "Bloom Tonemap Compression";
 	ui_tooltip = "Lower values compress a larger color range.";
-> = 5.0;
+> = 2.0;
 
 /*=============================================================================
 	Textures, Samplers, Globals
@@ -257,9 +261,7 @@ void PS_BloomPrepass(in float4 pos : SV_Position, in float2 uv : TEXCOORD0, out 
 	color.w = dot(color.rgb, 0.333);
 
 	color.rgb = lerp(color.w, color.rgb, BLOOM_SAT);
-	color.rgb *= (pow(color.w, BLOOM_CURVE) * BLOOM_INTENSITY * BLOOM_INTENSITY) / (color.w + 1e-3);
-
-	color.w = lerp(0.5, color.w, BLOOM_ADAPT_STRENGTH);
+	color.rgb *= (pow(color.w, BLOOM_CURVE) * BLOOM_INTENSITY * BLOOM_INTENSITY * BLOOM_INTENSITY) / (color.w + 1e-3);
 }
 
 void PS_Downsample1(in float4 pos : SV_Position, in float2 uv : TEXCOORD0, out float4 bloom : SV_Target0)
@@ -290,7 +292,7 @@ void PS_Downsample7(in float4 pos : SV_Position, in float2 uv : TEXCOORD0, out f
 {	
 	bloom = downsample(sMXBLOOM_BloomTex6, 		ldexp(qUINT::SCREEN_SIZE, -7.0), uv); 
 	bloom.w = lerp(tex2D(sMXBLOOM_BloomTexAdapt, 0).x /*last*/, 
-				   ldexp(bloom.w, BLOOM_ADAPT_EXPOSURE) /*current*/, 
+				   bloom.w /*current*/, 
 				   saturate(qUINT::FRAME_TIME * 1e-3 * BLOOM_ADAPT_SPEED));
 }
 
@@ -327,10 +329,12 @@ void PS_Combine(in float4 pos : SV_Position, in float2 uv : TEXCOORD0, out float
 	bloom /= dot(float4(BLOOM_LAYER_MULT_1, BLOOM_LAYER_MULT_2, BLOOM_LAYER_MULT_3, BLOOM_LAYER_MULT_4), 1) + dot(float3(BLOOM_LAYER_MULT_5, BLOOM_LAYER_MULT_6, BLOOM_LAYER_MULT_7), 1);
 	color = tex2D(qUINT::sBackBufferTex, uv);
 	
-	//color.rgb = lerp(color.rgb, bloom.rgb * 128.0, 0.16 * saturate(BLOOM_INTENSITY));
+	float adapt = tex2D(sMXBLOOM_BloomTexAdapt, 0).x + 1e-3; // we lerped to 0.5 earlier.
+	adapt *= 32;
 
-
-	color.rgb = (color.rgb + bloom.rgb) / (tex2D(sMXBLOOM_BloomTexAdapt, 0).x + 1e-6);
+	color.rgb += bloom.rgb;
+	color.rgb *= lerp(1, rcp(adapt), BLOOM_ADAPT_STRENGTH); 
+	color.rgb = ldexp(color.rgb, BLOOM_ADAPT_EXPOSURE);
 
 	color.rgb = pow(color.rgb, BLOOM_TONEMAP_COMPRESSION);
 	color.rgb = color.rgb / (1.0 + color.rgb);
