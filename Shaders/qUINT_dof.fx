@@ -27,7 +27,7 @@
 //------------------------------------------------------------------
 //Enables chromatic aberration at bokeh shape borders.
 #ifndef ADOF_CHROMATIC_ABERRATION_ENABLE
- #define ADOF_CHROMATIC_ABERRATION_ENABLE          0	  //[0 or 1]
+ #define ADOF_CHROMATIC_ABERRATION_ENABLE          1	  //[0 or 1]
 #endif
 
 /*=============================================================================
@@ -319,7 +319,7 @@ float CircleOfConfusion(float2 texcoord, bool aggressiveLeakReduction)
 	scenecoc = (handdepth < FPS_HAND_BLUR_CUTOFF_DIST * 1e-4) ? 0.0 : scenecoc;
 #endif //FPS_HAND_BLUR_CUTOFF_CHECK
 
-	return 1; //scenecoc;
+	return scenecoc;
 }
 
 void ShapeRoundness(inout float2 sampleOffset, in float roundness)
