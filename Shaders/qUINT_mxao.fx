@@ -256,9 +256,13 @@ float4 blur_filter(in MXAO_VSOUT MXAO, in sampler inputsampler, in float inputsc
     float4 samplesum = tempsample.BLUR_COMP_SWIZZLE;
     [branch]
     if(MXAO.samples == 255) return samplesum.BLUR_COMP_SWIZZLE;
-    float4 samplesum_noweight = samplesum;
-    float2 bluroffsets[8] = {float2(1.5,0.5),float2(-1.5,-0.5),float2(-0.5,1.5),float2(0.5,-1.5),
-                             float2(1.5,2.5),float2(-1.5,-2.5),float2(-2.5,1.5),float2(2.5,-1.5)};
+    float4 samplesum_noweight = samplesum.BLUR_COMP_SWIZZLE; 
+
+    static const float2 bluroffsets[8] = 
+    {
+    	float2(1.5,0.5),float2(-1.5,-0.5),float2(-0.5,1.5),float2(0.5,-1.5),
+        float2(1.5,2.5),float2(-1.5,-2.5),float2(-2.5,1.5),float2(2.5,-1.5)
+    };
 
     float2 scaled_radius = qUINT::PIXEL_SIZE * radius / inputscale;
 
@@ -270,8 +274,8 @@ float4 blur_filter(in MXAO_VSOUT MXAO, in sampler inputsampler, in float inputsc
         spatial_sample_key(sampleCoord, inputscale, inputsampler, tempsample, tempkey);
         spatial_sample_weight(tempkey, centerkey, surfacealignment, tempweight);
 
-        samplesum += tempsample.BLUR_COMP_SWIZZLE * tempweight;
-        samplesum_noweight += tempsample.BLUR_COMP_SWIZZLE;
+        samplesum.BLUR_COMP_SWIZZLE += tempsample.BLUR_COMP_SWIZZLE * tempweight;
+        samplesum_noweight.BLUR_COMP_SWIZZLE += tempsample.BLUR_COMP_SWIZZLE;
         centerweight += tempweight;
     }
 
@@ -342,9 +346,7 @@ void PS_InputBufferSetup(in MXAO_VSOUT MXAO, out float4 color : SV_Target0, out 
 	position_delta_x1 = lerp(position_delta_x1, position_delta_x2, abs(position_delta_x1.z) > abs(position_delta_x2.z));
 	position_delta_y1 = lerp(position_delta_y1, position_delta_y2, abs(position_delta_y1.z) > abs(position_delta_y2.z));
 
-    float sample_jitter = dot(floor(MXAO.vpos.xy % 4 + 0.1), float2(0.0625, 0.25)) + 0.0625;
-
-	normal  = float4(normalize(cross(position_delta_y1, position_delta_x1)) * 0.5 + 0.5, sample_jitter);
+	normal  = float4(normalize(cross(position_delta_y1, position_delta_x1)) * 0.5 + 0.5, 0);
     color 	= tex2D(qUINT::sBackBufferTex, MXAO.uv.xy);
 	depth 	= qUINT::linear_depth(MXAO.uv.xy) * RESHADE_DEPTH_LINEARIZATION_FAR_PLANE;    
 }
@@ -365,16 +367,17 @@ void PS_AmbientObscurance(in MXAO_VSOUT MXAO, out float4 color : SV_Target0)
     color = 0.0;
 
 	float3 position = get_position_from_uv_mipmapped(MXAO.uv.zw, MXAO, 0);
-    float4 normal = tex2D(sMXAO_NormalTex, MXAO.uv.zw);
-    normal.xyz = normal.xyz * 2.0 - 1.0;
+    float3 normal = tex2D(sMXAO_NormalTex, MXAO.uv.zw).xyz * 2.0 - 1.0;
+
+    float sample_jitter = dot(floor(MXAO.vpos.xy % 4 + 0.1), float2(0.0625, 0.25)) + 0.0625;
 
     float  layer_id = (MXAO.vpos.x + MXAO.vpos.y) % 2.0;
 
 #if(MXAO_SMOOTHNORMALS != 0)
-    smooth_normals(normal.xyz, position, MXAO);
+    smooth_normals(normal, position, MXAO);
 #endif
     float linear_depth = position.z / RESHADE_DEPTH_LINEARIZATION_FAR_PLANE;        
-    position += normal.xyz * linear_depth;
+    position += normal * linear_depth;
 
     if(MXAO_GLOBAL_SAMPLE_QUALITY_PRESET == 7) MXAO.samples = 2 + floor(0.05 * MXAO_SAMPLE_RADIUS / linear_depth);
 
@@ -383,20 +386,20 @@ void PS_AmbientObscurance(in MXAO_VSOUT MXAO, out float4 color : SV_Target0)
     sample_parameter_setup(MXAO, position.z, layer_id, scaled_radius, falloff_factor);
 
     float2 sample_uv, sample_direction;
-    sincos(2.3999632 * 16 * normal.w, sample_direction.x, sample_direction.y); //2.3999632 * 16
+    sincos(2.3999632 * 16 * sample_jitter, sample_direction.x, sample_direction.y); //2.3999632 * 16
     sample_direction *= scaled_radius;   
 
     [loop]
     for(int i = 0; i < MXAO.samples; i++)
     {                    
-        sample_uv = MXAO.uv.zw + sample_direction.xy * qUINT::ASPECT_RATIO * (i + normal.w);   
+        sample_uv = MXAO.uv.zw + sample_direction.xy * qUINT::ASPECT_RATIO * (i + sample_jitter);   
         sample_direction.xy = mul(sample_direction.xy, float2x2(0.76465, -0.64444, 0.64444, 0.76465)); //cos/sin 2.3999632 * 16            
 
         float sample_mip = saturate(scaled_radius * i * 20.0) * 3.0;
            
     	float3 occlusion_vector = -position + get_position_from_uv_mipmapped(sample_uv, MXAO, sample_mip + MXAO_MIPLEVEL_AO);                
         float  occlusion_distance_squared = dot(occlusion_vector, occlusion_vector);
-        float  occlusion_normal_angle = dot(occlusion_vector, normal.xyz) * rsqrt(occlusion_distance_squared);
+        float  occlusion_normal_angle = dot(occlusion_vector, normal) * rsqrt(occlusion_distance_squared);
 
         float sample_occlusion = saturate(1.0 + falloff_factor * occlusion_distance_squared) * saturate(occlusion_normal_angle - MXAO_SAMPLE_NORMAL_BIAS);
 #if(MXAO_ENABLE_IL != 0)
