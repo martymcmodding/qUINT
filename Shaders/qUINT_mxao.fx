@@ -192,6 +192,12 @@ struct MXAO_VSOUT
     nointerpolation float3  uvtoviewMUL : TEXCOORD5;
 };
 
+struct BlurData
+{
+	float4 key;
+	float4 mask;
+};
+
 MXAO_VSOUT VS_MXAO(in uint id : SV_VertexID)
 {
     MXAO_VSOUT MXAO;
@@ -230,58 +236,56 @@ float3 get_position_from_uv_mipmapped(in float2 uv, in MXAO_VSOUT MXAO, in int m
     return (uv.xyx * MXAO.uvtoviewMUL + MXAO.uvtoviewADD) * tex2Dlod(sMXAO_DepthTex, float4(uv.xyx, miplevel)).x;
 }
 
-void spatial_sample_weight(in float4 tempkey, in float4 centerkey, in float surfacealignment, inout float weight)
+void spatial_blur_data(inout BlurData o, in sampler inputsampler, in float inputscale, in float4 uv)
 {
-    weight = saturate(rcp(surfacealignment) - abs(tempkey.w - centerkey.w)) * saturate(dot(tempkey.xyz, centerkey.xyz) * 16 - 15);
-    weight = saturate(weight * 4.0);
+	o.key = tex2Dlod(inputsampler, uv * inputscale);
+	o.mask = tex2Dlod(sMXAO_NormalTex, uv);
+	o.mask.xyz = o.mask.xyz * 2 - 1;
 }
 
-void spatial_sample_key(in float2 uv, in float inputscale, in sampler inputsampler, inout float4 tempsample, inout float4 key)
+float compute_spatial_tap_weight(in BlurData center, in BlurData tap)
 {
-    float4 lodcoord = float4(uv.xy, 0, 0);
-    tempsample = tex2Dlod(inputsampler, lodcoord * inputscale);
-    key = float4(tex2Dlod(sMXAO_NormalTex, lodcoord).xyz * 2.0 - 1.0, tex2Dlod(sMXAO_DepthTex, lodcoord).x);
+	float depth_term = saturate(1 - abs(tap.mask.w - center.mask.w));
+	float normal_term = saturate(dot(tap.mask.xyz, center.mask.xyz) * 16 - 15);
+	return depth_term * normal_term;
 }
 
-float4 blur_filter(in MXAO_VSOUT MXAO, in sampler inputsampler, in float inputscale, in float radius, in int blursteps, in int passid)
+float4 blur_filter(in MXAO_VSOUT MXAO, in sampler inputsampler, in float inputscale, in float radius, in int blursteps)
 {
-    float4 tempsample;
-    float4 centerkey, tempkey;
-    float  centerweight = 1.0, tempweight;
-    float4 blurcoord = 0.0;
+	float4 blur_uv = float4(MXAO.uv.xy, 0, 0);
 
-    spatial_sample_key(MXAO.uv.xy, inputscale, inputsampler, tempsample, centerkey);
-    float surfacealignment = saturate(-dot(centerkey.xyz, normalize(float3(MXAO.uv.xy * 2.0 - 1.0, 1.0) * centerkey.w)));
+    BlurData center, tap;
+	spatial_blur_data(center, inputsampler, inputscale, blur_uv);
 
-    float4 samplesum = tempsample.BLUR_COMP_SWIZZLE;
-    [branch]
-    if(MXAO.samples == 255) return samplesum.BLUR_COMP_SWIZZLE;
-    float4 samplesum_noweight = samplesum.BLUR_COMP_SWIZZLE; 
+	float4 blursum 			= center.key;
+	float4 blursum_noweight = center.key;
+	float blurweight = 1;
 
-    static const float2 bluroffsets[8] = 
+    static const float2 offsets[8] = 
     {
     	float2(1.5,0.5),float2(-1.5,-0.5),float2(-0.5,1.5),float2(0.5,-1.5),
         float2(1.5,2.5),float2(-1.5,-2.5),float2(-2.5,1.5),float2(2.5,-1.5)
     };
 
-    float2 scaled_radius = qUINT::PIXEL_SIZE * radius / inputscale;
+    float2 blur_offsetscale = qUINT::PIXEL_SIZE / inputscale * radius;
 
-    [unroll]
-    for(int i = 0; i < blursteps; i++)
-    {
-        float2 sampleCoord = MXAO.uv.xy + bluroffsets[i] * scaled_radius;
+	[unroll]
+	for(int i = 0; i < blursteps; i++) 
+	{
+		blur_uv.xy = MXAO.uv.xy + offsets[i] * blur_offsetscale;
+		spatial_blur_data(tap, inputsampler, inputscale, blur_uv);
 
-        spatial_sample_key(sampleCoord, inputscale, inputsampler, tempsample, tempkey);
-        spatial_sample_weight(tempkey, centerkey, surfacealignment, tempweight);
+		float tap_weight = compute_spatial_tap_weight(center, tap);
 
-        samplesum.BLUR_COMP_SWIZZLE += tempsample.BLUR_COMP_SWIZZLE * tempweight;
-        samplesum_noweight.BLUR_COMP_SWIZZLE += tempsample.BLUR_COMP_SWIZZLE;
-        centerweight += tempweight;
-    }
+		blurweight += tap_weight;
+		blursum.BLUR_COMP_SWIZZLE += tap.key.BLUR_COMP_SWIZZLE * tap_weight;
+		blursum_noweight.BLUR_COMP_SWIZZLE += tap.key.BLUR_COMP_SWIZZLE;
+	}
 
-    samplesum_noweight.BLUR_COMP_SWIZZLE /= 1 + blursteps;
-    samplesum.BLUR_COMP_SWIZZLE /= centerweight;
-    return lerp(samplesum.BLUR_COMP_SWIZZLE, samplesum_noweight.BLUR_COMP_SWIZZLE, centerweight < 1.5);
+	blursum.BLUR_COMP_SWIZZLE /= blurweight;
+	blursum_noweight.BLUR_COMP_SWIZZLE /= 1 + blursteps;
+
+	return lerp(blursum.BLUR_COMP_SWIZZLE, blursum_noweight.BLUR_COMP_SWIZZLE, blurweight < 2);
 }
 
 void sample_parameter_setup(in MXAO_VSOUT MXAO, in float scaled_depth, in float layer_id, out float scaled_radius, out float falloff_factor)
@@ -337,18 +341,21 @@ void PS_InputBufferSetup(in MXAO_VSOUT MXAO, out float4 color : SV_Target0, out 
 {
     float3 single_pixel_offset = float3(qUINT::PIXEL_SIZE.xy, 0);
 
-	float3 position                 =               get_position_from_uv(MXAO.uv.xy, MXAO);
-	float3 position_delta_x1 	 = - position + get_position_from_uv(MXAO.uv.xy + single_pixel_offset.xz, MXAO);
-	float3 position_delta_x2 	 =   position - get_position_from_uv(MXAO.uv.xy - single_pixel_offset.xz, MXAO);
-	float3 position_delta_y1 	 = - position + get_position_from_uv(MXAO.uv.xy + single_pixel_offset.zy, MXAO);
-	float3 position_delta_y2 	 =   position - get_position_from_uv(MXAO.uv.xy - single_pixel_offset.zy, MXAO);
+	float3 position          =              get_position_from_uv(MXAO.uv.xy, MXAO);
+	float3 position_delta_x1 = - position + get_position_from_uv(MXAO.uv.xy + single_pixel_offset.xz, MXAO);
+	float3 position_delta_x2 =   position - get_position_from_uv(MXAO.uv.xy - single_pixel_offset.xz, MXAO);
+	float3 position_delta_y1 = - position + get_position_from_uv(MXAO.uv.xy + single_pixel_offset.zy, MXAO);
+	float3 position_delta_y2 =   position - get_position_from_uv(MXAO.uv.xy - single_pixel_offset.zy, MXAO);
 
 	position_delta_x1 = lerp(position_delta_x1, position_delta_x2, abs(position_delta_x1.z) > abs(position_delta_x2.z));
 	position_delta_y1 = lerp(position_delta_y1, position_delta_y2, abs(position_delta_y1.z) > abs(position_delta_y2.z));
 
-	normal  = float4(normalize(cross(position_delta_y1, position_delta_x1)) * 0.5 + 0.5, 0);
+	float deltaz = abs(position_delta_x1.z * position_delta_x1.z - position_delta_x2.z * position_delta_x2.z)
+				 + abs(position_delta_y1.z * position_delta_y1.z - position_delta_y2.z * position_delta_y2.z);
+
+	normal  = float4(normalize(cross(position_delta_y1, position_delta_x1)) * 0.5 + 0.5, deltaz);
     color 	= tex2D(qUINT::sBackBufferTex, MXAO.uv.xy);
-	depth 	= qUINT::linear_depth(MXAO.uv.xy) * RESHADE_DEPTH_LINEARIZATION_FAR_PLANE;    
+	depth 	= qUINT::linear_depth(MXAO.uv.xy) * RESHADE_DEPTH_LINEARIZATION_FAR_PLANE;   
 }
 
 void PS_StencilSetup(in MXAO_VSOUT MXAO, out float4 color : SV_Target0)
@@ -426,12 +433,13 @@ void PS_AmbientObscurance(in MXAO_VSOUT MXAO, out float4 color : SV_Target0)
 
 void PS_SpatialFilter1(in MXAO_VSOUT MXAO, out float4 color : SV_Target0)
 {
-    color = blur_filter(MXAO, qUINT::sCommonTex0, MXAO_GLOBAL_RENDER_SCALE, 1, 8, 0);
+    color = blur_filter(MXAO, qUINT::sCommonTex0, MXAO_GLOBAL_RENDER_SCALE, 0.75, 8);
 }
 
 void PS_SpatialFilter2(MXAO_VSOUT MXAO, out float4 color : SV_Target0)
 {
-    float4 ssil_ssao = blur_filter(MXAO, qUINT::sCommonTex1, 1, 0.75 / MXAO_GLOBAL_RENDER_SCALE, 4, 1);
+    float4 ssil_ssao = blur_filter(MXAO, qUINT::sCommonTex1, 1, 1.0 / MXAO_GLOBAL_RENDER_SCALE, 4);
+
     ssil_ssao *= ssil_ssao; //AO denoise
 
 	color = tex2D(sMXAO_ColorTex, MXAO.uv.xy);
