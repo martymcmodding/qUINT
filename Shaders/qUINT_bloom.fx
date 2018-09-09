@@ -32,14 +32,14 @@ uniform float BLOOM_INTENSITY <
 	ui_min = 0.00; ui_max = 10.00;
 	ui_label = "Bloom Intensity";
 	ui_tooltip = "Scales bloom brightness.";
-> = 6.0;
+> = 1.2;
 
 uniform float BLOOM_CURVE <
 	ui_type = "drag";
 	ui_min = 0.00; ui_max = 10.00;
 	ui_label = "Bloom Curve";
 	ui_tooltip = "Higher values limit bloom to bright light sources only.";
-> = 5.0;
+> = 1.5;
 
 uniform float BLOOM_SAT <
 	ui_type = "drag";
@@ -60,49 +60,49 @@ uniform float BLOOM_LAYER_MULT_1 <
 	ui_min = 0.00; ui_max = 1.00;
 	ui_label = "Bloom Layer 1 Intensity";
 	ui_tooltip = "Intensity of this bloom layer. 1 is sharpest layer, 7 the most blurry.";
-> = 0.3;
+> = 0.05;
 uniform float BLOOM_LAYER_MULT_2 <
 	ui_type = "drag";
 	ui_min = 0.00; ui_max = 1.00;
 	ui_label = "Bloom Layer 2 Intensity";
 	ui_tooltip = "Intensity of this bloom layer. 1 is sharpest layer, 7 the most blurry.";
-> = 0.1;
+> = 0.05;
 uniform float BLOOM_LAYER_MULT_3 <
 	ui_type = "drag";
 	ui_min = 0.00; ui_max = 1.00;
 	ui_label = "Bloom Layer 3 Intensity";
 	ui_tooltip = "Intensity of this bloom layer. 1 is sharpest layer, 7 the most blurry.";
-> = 0.15;
+> = 0.05;
 uniform float BLOOM_LAYER_MULT_4 <
 	ui_type = "drag";
 	ui_min = 0.00; ui_max = 1.00;
 	ui_label = "Bloom Layer 4 Intensity";
 	ui_tooltip = "Intensity of this bloom layer. 1 is sharpest layer, 7 the most blurry.";
-> = 0.3;
+> = 0.1;
 uniform float BLOOM_LAYER_MULT_5 <
 	ui_type = "drag";
 	ui_min = 0.00; ui_max = 1.00;
 	ui_label = "Bloom Layer 5 Intensity";
 	ui_tooltip = "Intensity of this bloom layer. 1 is sharpest layer, 7 the most blurry.";
-> = 1.0;
+> = 0.5;
 uniform float BLOOM_LAYER_MULT_6 <
 	ui_type = "drag";
 	ui_min = 0.00; ui_max = 1.00;
 	ui_label = "Bloom Layer 6 Intensity";
 	ui_tooltip = "Intensity of this bloom layer. 1 is sharpest layer, 7 the most blurry.";
-> = 1.0;
+> = 0.01;
 uniform float BLOOM_LAYER_MULT_7 <
 	ui_type = "drag";
 	ui_min = 0.00; ui_max = 1.00;
 	ui_label = "Bloom Layer 7 Intensity";
 	ui_tooltip = "Intensity of this bloom layer. 1 is sharpest layer, 7 the most blurry.";
-> = 0.0;
+> = 0.01;
 uniform float BLOOM_ADAPT_STRENGTH <
 	ui_type = "drag";
 	ui_min = 0.00; ui_max = 1.00;
 	ui_label = "Bloom Scene Adaptation Sensitivity";
 	ui_tooltip = "Amount of adaptation applied, 0 means same exposure for all scenes, 1 means complete autoexposure.";
-> = 0.0;
+> = 0.5;
 uniform float BLOOM_ADAPT_EXPOSURE <
 	ui_type = "drag";
 	ui_min = -5.00; ui_max = 5.00;
@@ -114,13 +114,13 @@ uniform float BLOOM_ADAPT_SPEED <
 	ui_min = 0.50; ui_max = 10.00;
 	ui_label = "Bloom Scene Adaptation Speed";
 	ui_tooltip = "Eye adaptation data is created by exponential moving average with last frame data.\nThis parameter controls the adjustment speed.\nHigher parameters let the image adjust more quickly.";
-> = 10.0;
+> = 2.0;
 uniform float BLOOM_TONEMAP_COMPRESSION <
 	ui_type = "drag";
 	ui_min = 0.00; ui_max = 10.00;
 	ui_label = "Bloom Tonemap Compression";
 	ui_tooltip = "Lower values compress a larger color range.";
-> = 2.0;
+> = 4.0;
 
 /*=============================================================================
 	Textures, Samplers, Globals
@@ -203,7 +203,7 @@ float4 downsample(sampler2D tex, float2 tex_size, float2 uv)
 	kernel_large_2 += tex2Dlod(tex, offset_uv); //0-
 
 	return kernel_center * 0.5 / 4.0		
-	     + kernel_small  * 0.5 / 4.0;		
+	     + kernel_small  * 0.5 / 4.0	
 	     + kernel_large_1 * 0.125 / 4.0
 	     + kernel_large_2 * 0.25 / 4.0;
 #endif
@@ -330,7 +330,7 @@ void PS_Combine(in float4 pos : SV_Position, in float2 uv : TEXCOORD0, out float
 	color = tex2D(qUINT::sBackBufferTex, uv);
 	
 	float adapt = tex2D(sMXBLOOM_BloomTexAdapt, 0).x + 1e-3; // we lerped to 0.5 earlier.
-	adapt *= 32;
+	adapt *= 8;
 
 	color.rgb += bloom.rgb;
 	color.rgb *= lerp(1, rcp(adapt), BLOOM_ADAPT_STRENGTH); 
