@@ -41,4 +41,7 @@ To prohibit focused areas from bleeding their color into blurred areas - a commo
 
 * `Bloom` is a filter that adds a glow around bright screen areas, adapting to the current scene brightness. Most current games already contain such an effect but most older implementations are very simple. The shader runs as fast as 0.1ms / frame and due to a smart down- and upscale system it has a very small memory footprint.
 
+* `Screen-Space Reflections` adds reflections to the scene, using the data that is already available in the image. This is the spiritual successor of the "Reflective Bumpmapping" (RBM) in older ReShade shaders. It creates much more accurate reflections while not being quite as hard on performance. 
+As a Screen-Space technique, it suffers like all similar implementation from the fact that nothing outside the screen can be reflected. It also cannot distinguish between reflective and non-reflective surfaces, so it will just cover everything with a reflection layer. This restricts its usability to screenshots and certain games but where it is useful, it can completely transform the look of the scene.
+
 ### CC BY-NC-ND 3.0 licensed.
