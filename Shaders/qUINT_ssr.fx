@@ -32,19 +32,19 @@ uniform float SSR_FIELD_OF_VIEW <
 	ui_category = "Global";
 > = 50.0;
 
-uniform float SSR_FRESNEL_K <
+uniform float SSR_REFLECTION_INTENSITY <
 	ui_type = "drag";
 	ui_min = 0.00; ui_max = 1.00;
-	ui_label = "Reflection Coefficient";
-	ui_tooltip = "qUINT uses Schlick's fresnel approximation.\nThis parameter represents the reflection intensity when viewed head on.";
+	ui_label = "Reflection Intensity";
+	ui_tooltip = "Amount of reflection.";
 	ui_category = "Global";
-> = 0.0;
+> = 1.0;
 
 uniform float SSR_FRESNEL_EXP <
 	ui_type = "drag";
 	ui_min = 1.00; ui_max = 10.00;
 	ui_label = "Reflection Exponent";
-	ui_tooltip = "qUINT uses Schlick's fresnel approximation.\nThis parameter represents the power of the angle falloff.\nHigher values restrict reflections to very flat angles.\nOriginal Schlick value: 5.";
+	ui_tooltip = "qUINT uses Schlick's fresnel approximation.\nThis parameter represents the power of the angle falloff.\nHigher values restrict reflections to very flat angles.\nOriginal Schlick value: 5.\nThe Fresnel Coefficient is set to 0 to match most surfaces.";
 	ui_category = "Global";
 > = 5.0;
 
@@ -60,7 +60,7 @@ uniform float SSR_RAY_INC <
 	ui_type = "drag";
 	ui_min = 1.01; ui_max = 3.00;
 	ui_label = "Ray Increment";
-	ui_tooltip = "Rate of ray step size growth.\nA parameter of 1.0 means same sized steps,\n2.0 means the step size doubles each iteration.";
+	ui_tooltip = "Rate of ray step size growth.\nA parameter of 1.0 means same sized steps,\n2.0 means the step size doubles each iteration.\nIncrease if not the entire scene is represented (e.g. sky missing) at the cost of precision.";
 	ui_category = "Ray Tracing";
 > = 1.6;
 
@@ -86,7 +86,7 @@ uniform float SSR_FILTER_SIZE <
 	ui_label = "Filter Kernel Size";
 	ui_tooltip = "Size of spatial filter, higher values create more blurry reflections at the cost of detail.";
 	ui_category = "Filtering and Details";
-> = 0.2;
+> = 0.5;
 
 uniform float SSR_RELIEF_AMOUNT <
 	ui_type = "drag";
@@ -103,18 +103,6 @@ uniform float SSR_RELIEF_SCALE <
 	ui_tooltip = "Scale of embossed texture relief, lower values cause more high frequency relief.";
 	ui_category = "Filtering and Details";
 > = 0.35;
-
-uniform float4 tempF1 <
-    ui_type = "drag";
-    ui_min = -100.0;
-    ui_max = 100.0;
-> = float4(1,1,1,1);
-
-uniform float4 tempF2 <
-    ui_type = "drag";
-    ui_min = -100.0;
-    ui_max = 100.0;
-> = float4(1,1,1,1);
 
 /*=============================================================================
 	Textures, Samplers, Globals
@@ -144,11 +132,8 @@ SSR_VSOUT VS_SSR(in uint id : SV_VertexID)
     o.uv.y = (id == 1) ? 2.0 : 0.0;       
     o.vpos = float4(o.uv.xy * float2(2.0, -2.0) + float2(-1.0, 1.0), 0.0, 1.0);
     
-    o.uvtoviewADD = float3(-1.0,-1.0,1.0);
-    o.uvtoviewMUL = float3(2.0,2.0,0.0);
-
-  	//uncomment to enable perspective-correct position recontruction. Minor difference for common FoV's
-    //static const float SSR_FIELD_OF_VIEW = 70.0; //vertical FoV
+    //o.uvtoviewADD = float3(-1.0,-1.0,1.0);
+    //o.uvtoviewMUL = float3(2.0,2.0,0.0);
 
     o.uvtoviewADD = float3(-tan(radians(SSR_FIELD_OF_VIEW * 0.5)).xx,1.0) * float3(qUINT::ASPECT_RATIO, 1);
 	o.uvtoviewMUL = float3(-2.0 * o.uvtoviewADD.xy,0.0);
@@ -191,25 +176,25 @@ float4 get_normal_and_edges_from_depth(in SSR_VSOUT i)
 
 float3 get_normal_from_color(float2 uv, float2 offset, float scale, float sharpness)
 {
-    const float3 lumCoeff = float3(0.299,0.587,0.114);
- 
-    float hpx = dot(tex2Dlod(qUINT::sBackBufferTex, float4(uv + float2(offset.x,0.0),0,0)).xyz,lumCoeff) * scale;
-    float hmx = dot(tex2Dlod(qUINT::sBackBufferTex, float4(uv - float2(offset.x,0.0),0,0)).xyz,lumCoeff) * scale;
-    float hpy = dot(tex2Dlod(qUINT::sBackBufferTex, float4(uv + float2(0.0,offset.y),0,0)).xyz,lumCoeff) * scale;
-    float hmy = dot(tex2Dlod(qUINT::sBackBufferTex, float4(uv - float2(0.0,offset.y),0,0)).xyz,lumCoeff) * scale;
+	float3 offset_swiz = float3(offset.xy, 0);
+    float hpx = dot(tex2Dlod(qUINT::sBackBufferTex, float4(uv + offset_swiz.xz,0,0)).xyz, 0.333) * scale;
+    float hmx = dot(tex2Dlod(qUINT::sBackBufferTex, float4(uv - offset_swiz.xz,0,0)).xyz, 0.333) * scale;
+    float hpy = dot(tex2Dlod(qUINT::sBackBufferTex, float4(uv + offset_swiz.zy,0,0)).xyz, 0.333) * scale;
+    float hmy = dot(tex2Dlod(qUINT::sBackBufferTex, float4(uv - offset_swiz.zy,0,0)).xyz, 0.333) * scale;
 
-    float dpx = qUINT::linear_depth(uv + float2(offset.x,0.0));
-    float dmx = qUINT::linear_depth(uv - float2(offset.x,0.0));
-    float dpy = qUINT::linear_depth(uv + float2(0.0,offset.y));
-    float dmy = qUINT::linear_depth(uv - float2(0.0,offset.y));
+    float dpx = qUINT::linear_depth(uv + offset_swiz.xz);
+    float dmx = qUINT::linear_depth(uv - offset_swiz.xz);
+    float dpy = qUINT::linear_depth(uv + offset_swiz.zy);
+    float dmy = qUINT::linear_depth(uv - offset_swiz.zy);
  
     float2 xymult = float2(abs(dmx - dpx), abs(dmy - dpy)) * sharpness;
-    xymult = max(0.0, 1.0 - xymult);
-       
-    float ddx = (hmx - hpx) / (2.0 * offset.x) * xymult.x;
-    float ddy = (hmy - hpy) / (2.0 * offset.y) * xymult.y;
-   
-    return normalize(float3(ddx, ddy, 1.0));
+    xymult = saturate(1.0 - xymult);
+
+    float3 normal;
+    normal.xy = float2(hmx - hpx, hmy - hpy) * xymult / offset.xy * 0.5;
+    normal.z = 1.0;
+
+    return normalize(normal);       
 }
  
 float3 blend_normals(float3 n1, float3 n2)
@@ -293,7 +278,7 @@ void PS_SSR(in SSR_VSOUT i, out float4 reflection : SV_Target0, out float4 blurb
 	Ray ray;
 	ray.origin = scene.position;
 	ray.dir = reflect(scene.eyedir, scene.normal);
-	ray.step = (0.2 + 0.05 * jitter * SSR_JITTER_AMOUNT) * sqrt(scene.depth);
+	ray.step = (0.2 + 0.05 * jitter * SSR_JITTER_AMOUNT) * sqrt(scene.depth) * rcp(1e-3 + saturate(1 - dot(ray.dir, scene.eyedir))); //<-ensure somewhat uniform step size in screen percentage
 	ray.pos = ray.origin + ray.dir * ray.step;
 
 	TraceData trace;
@@ -322,12 +307,11 @@ void PS_SSR(in SSR_VSOUT i, out float4 reflection : SV_Target0, out float4 blurb
 				ray.pos -= ray.dir * ray.step; 
 				//decrease stepsize by magic amount - at some point the increased 
 				//resolution is too small to notice and just adds up to the render cost
-				ray.step *= SSR_RAY_INC * 0.05;
+				ray.step *= SSR_RAY_INC * rcp(trace.num_steps);
 			}
 			else
 			{
 				j += trace.num_steps; //algebraic "break" - much faster
-				trace.hit = 1;	
 			}
 			k++;	
 		}
@@ -339,7 +323,11 @@ void PS_SSR(in SSR_VSOUT i, out float4 reflection : SV_Target0, out float4 blurb
 		j += trace.num_steps * !uv_inside_screen;
 	}
 
-	float schlick = lerp(SSR_FRESNEL_K, 1, pow(1 - dot(-scene.eyedir, scene.normal), SSR_FRESNEL_EXP));
+	trace.hit = k != 0;	//we did refinements -> we initially found an intersection
+
+	float SSR_FRESNEL_K = 0.0; //matches most surfaces
+	//Van Damme between physically correct and  total artistic nonsense
+	float schlick = lerp(SSR_FRESNEL_K, 1, pow(1 - dot(-scene.eyedir, scene.normal), SSR_FRESNEL_EXP)) * SSR_REFLECTION_INTENSITY;
 	float fade 	  = saturate(dot(scene.eyedir, ray.dir)) * saturate(1 - dot(-scene.eyedir, scene.normal));
 
 	reflection.a   = trace.hit * schlick * fade;
@@ -347,7 +335,6 @@ void PS_SSR(in SSR_VSOUT i, out float4 reflection : SV_Target0, out float4 blurb
 
 	blurbuffer.xyz = blurbuffer.xyz * 0.5 + 0.5;
 }
-
 
 void spatial_blur_data(inout BlurData o, in sampler inputsampler, in float4 uv)
 {
