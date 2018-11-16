@@ -128,7 +128,11 @@ uniform float BLOOM_TONEMAP_COMPRESSION <
 
 #include "qUINT_common.fxh"
 
-static const int BloomTex7_LowestMip = int(log(BUFFER_HEIGHT/128) / log(2)) + 1;
+#define CONST_LOG2(v) (((v) & 0xAAAAAAAA) != 0) | ((((v) & 0xFFFF0000) != 0) << 4) | ((((v) & 0xFF00FF00) != 0) << 3) | ((((v) & 0xF0F0F0F0) != 0) << 2) | ((((v) & 0xCCCCCCCC) != 0) << 1)
+
+
+//static const int BloomTex7_LowestMip = int(log(BUFFER_HEIGHT/128) / log(2)) + 1;
+static const int BloomTex7_LowestMip = CONST_LOG2(BUFFER_HEIGHT/128);
 
 texture2D MXBLOOM_BloomTexSource 	{ Width = BUFFER_WIDTH/2; 	Height = BUFFER_HEIGHT/2;    Format = RGBA16F;};
 texture2D MXBLOOM_BloomTex1 		{ Width = BUFFER_WIDTH/2; 	Height = BUFFER_HEIGHT/2;    Format = RGBA16F;};

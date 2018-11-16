@@ -213,12 +213,12 @@ MXAO_VSOUT VS_MXAO(in uint id : SV_VertexID)
     MXAO.uvtoviewADD = float3(-1.0,-1.0,1.0);
     MXAO.uvtoviewMUL = float3(2.0,2.0,0.0);
 
-/*  //uncomment to enable perspective-correct position recontruction. Minor difference for common FoV's
-    static const float FOV = 70.0; //vertical FoV
+#if 0
+    static const float FOV = 75; //vertical FoV
+    MXAO.uvtoviewADD = float3(-tan(radians(FOV * 0.5)).xx,1.0) * qUINT::ASPECT_RATIO.xyx;
+   	MXAO.uvtoviewMUL = float3(-2.0 * MXAO.uvtoviewADD.xy,0.0);
+#endif
 
-    MXAO.uvtoviewADD = float3(-tan(radians(FOV * 0.5)).xx,1.0) * qUINT::ASPECT_RATIO;
-    MXAO.uvtoviewMUL = float3(-2.0 * MXAO.uvtoviewADD.xy,0.0);
-*/
     return MXAO;
 }
 
