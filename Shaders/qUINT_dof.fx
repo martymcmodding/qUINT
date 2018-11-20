@@ -1,6 +1,6 @@
 /*=============================================================================
 
-	ReShade 3 effect file
+	ReShade 4 effect file
     github.com/martymcmodding
 
 	Support me:
@@ -605,7 +605,7 @@ void PS_DoF_ChromaticAberration(in ADOF_VSOUT IN, out float4 color : SV_Target0)
 	chromaVals[1].rgb = lerp(chromaVals[0].rgb, chromaVals[1].rgb, saturate(4.0 * abs(chromaVals[1].w)));
 	chromaVals[2].rgb = lerp(chromaVals[0].rgb, chromaVals[2].rgb, saturate(4.0 * abs(chromaVals[2].w)));
 
-	int3 chromaMode = (int3(0,1,2) + iADOF_ShapeChromaMode.xxx) % 3;
+	uint3 chromaMode = (uint3(0,1,2) + iADOF_ShapeChromaMode.xxx) % 3;
 
 	color.rgb = float3(chromaVals[chromaMode.x].r,
 		           chromaVals[chromaMode.y].g,
@@ -619,6 +619,12 @@ void PS_DoF_ChromaticAberration(in ADOF_VSOUT IN, out float4 color : SV_Target0)
 =============================================================================*/
 
 technique ADOF
+< ui_tooltip = "                         >> qUINT::ADOF <<\n\n"
+               "ADOF is a bokeh depth of field shader.\n"
+               "It blurs the scene in front of and behind the focus plane\n"
+               "to simulate the behaviour of real lenses. A multitude of features\n"
+               "allows to simulate various types of bokeh blur that cameras produce.\n"
+               "\nADOF is written by Marty McFly / Pascal Gilcher"; >
 {
    /* pass
     {

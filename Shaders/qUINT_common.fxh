@@ -1,7 +1,17 @@
+/*
+	DO NOT EDIT
+	DO NOT EDIT
+	DO NOT EDIT
+
+	I cannot stress this enough - if you don't want to break
+	EVERY shader that depends on this file, do not edit.
+
+*/
+
 #pragma once
 
-#if !defined(__RESHADE__) || __RESHADE__ < 30000
-	#error "ReShade 3.0+ is required to use this header file"
+#if !defined(__RESHADE__) || __RESHADE__ < 40000
+	#error "ReShade 4.0+ is required to use this header file"
 #endif
 
 #ifndef RESHADE_DEPTH_INPUT_IS_UPSIDE_DOWN

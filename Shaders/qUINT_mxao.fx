@@ -1,6 +1,6 @@
 /*=============================================================================
 
-	ReShade 3 effect file
+	ReShade 4 effect file
     github.com/martymcmodding
 
 	Support me:
@@ -455,6 +455,7 @@ void PS_SpatialFilter2(MXAO_VSOUT MXAO, out float4 color : SV_Target0)
     ssil_ssao.xyz = 0.0;
 #endif
 
+	ssil_ssao = saturate(ssil_ssao); //compiler..
 	ssil_ssao.w  = 1.0 - pow(1.0 - ssil_ssao.w, MXAO_SSAO_AMOUNT * 4.0);
     ssil_ssao    *= 1.0 - smoothstep(MXAO_FADE_DEPTH_START, MXAO_FADE_DEPTH_END, scenedepth * float4(2.0, 2.0, 2.0, 1.0));
 
@@ -496,7 +497,15 @@ void PS_SpatialFilter2(MXAO_VSOUT MXAO, out float4 color : SV_Target0)
 	Techniques
 =============================================================================*/
 
-technique MXAO
+technique MXAO 
+< ui_tooltip = "                     >> qUINT::MXAO <<\n\n"
+			   "MXAO is a screen-space ambient occlusion shader.\n"
+               "It adds diffuse shading to object corners to give more depth\n"
+               "and detail to the scene. Check out the preprocessor options to\n"
+               "get access to more functionality.\n"
+               "\nMake sure to move MXAO to the very top of your shader list for\n"
+               "maximum compatibility with other shaders.\n"
+               "\nMXAO is written by Marty McFly / Pascal Gilcher"; >
 {
     pass
 	{

@@ -1,6 +1,6 @@
 /*=============================================================================
 
-	ReShade 3 effect file
+	ReShade 4 effect file
     github.com/martymcmodding
 
 	Support me:
@@ -813,6 +813,12 @@ void PS_DisplayStatistics(float4 vpos : SV_Position, float2 uv : TEXCOORD0, floa
 =============================================================================*/
 
 technique Lightroom
+< ui_tooltip = "                      >> qUINT::Lightroom <<\n\n"
+			   "Lightroom is a color grading toolbox that offers a multitude\n"
+			   "of features commonly found in color grading software.\n"
+               "You can do deep color modifications, adjust contrast and levels,\n"
+               "tweak color balance, view a histogram and bake the CC into a 3D LUT.\n"
+               "\nLightroom is written by Marty McFly / Pascal Gilcher"; >
 {
 	pass PLightroom
 	{

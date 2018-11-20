@@ -1,6 +1,6 @@
 /*=============================================================================
 
-	ReShade 3 effect file
+	ReShade 4 effect file
     github.com/martymcmodding
 
 	Support me:
@@ -327,7 +327,7 @@ void PS_SSR(in SSR_VSOUT i, out float4 reflection : SV_Target0, out float4 blurb
 
 	float SSR_FRESNEL_K = 0.0; //matches most surfaces
 	//Van Damme between physically correct and  total artistic nonsense
-	float schlick = lerp(SSR_FRESNEL_K, 1, pow(1 - dot(-scene.eyedir, scene.normal), SSR_FRESNEL_EXP)) * SSR_REFLECTION_INTENSITY;
+	float schlick = lerp(SSR_FRESNEL_K, 1, pow(saturate(1 - dot(-scene.eyedir, scene.normal)), SSR_FRESNEL_EXP)) * SSR_REFLECTION_INTENSITY;
 	float fade 	  = saturate(dot(scene.eyedir, ray.dir)) * saturate(1 - dot(-scene.eyedir, scene.normal));
 
 	reflection.a   = trace.hit * schlick * fade;
@@ -406,6 +406,11 @@ void PS_FilterV(in SSR_VSOUT i, out float4 o : SV_Target0)
 =============================================================================*/
 
 technique SSR
+< ui_tooltip = "                      >> qUINT::SSR <<\n\n"
+			   "SSR adds screen-space reflections to the scene. This shader is\n"
+			   "intended to only be used in screenshots as it will add reflections\n"
+               "to _everything_ - ReShade limitation.\n"
+               "\nSSR is written by Marty McFly / Pascal Gilcher"; >
 {
 	pass
 	{
