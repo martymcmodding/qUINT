@@ -20,7 +20,7 @@
 =============================================================================*/
 
 #ifndef ENABLE_HISTOGRAM
- #define ENABLE_HISTOGRAM	1
+ #define ENABLE_HISTOGRAM	0
 #endif
 
 #ifndef HISTOGRAM_BINS_NUM
@@ -479,6 +479,9 @@ texture2D HistogramTex			{ Width = HISTOGRAM_BINS_NUM;   Height = 1;  			Format 
 sampler2D sHistogramTex 		{ Texture = HistogramTex; };
 #endif
 
+texture2D LutTexInternal			{ Width = 4096;   Height = 64;  			Format = RGBA8;  	};
+sampler2D sLutTexInternal 		{ Texture = LutTexInternal; };
+
 /*=============================================================================
 	Vertex Shader
 =============================================================================*/
@@ -684,10 +687,31 @@ void draw_lut(inout float3 color, in float2 vpos, in float tile_size, in float t
 
 	if(pixelcoord.x < tile_size * tile_amount && pixelcoord.y < tile_size)
 	{
-		color.rg = frac(pixelcoord.xy / tile_size) * tile_size / (tile_size - 1);
+		color.rg = frac(pixelcoord.xy / tile_size) - 0.5 / tile_size;
+		color.rg /= 1.0 - rcp(tile_size);
 		color.b  = floor(pixelcoord.x / tile_size)/(tile_amount - 1);
 		color.rgb = floor(color.rgb * 255.0) / 255.0;
 	}
+}
+
+void draw_lut_4096x64(inout float3 color, in float2 vpos)
+{
+	color.rgb = vpos.xyx / 64.0;
+	color.rg = frac(color.rg) - 0.5 / 64.0;
+	color.rg /= 1.0 - 1.0 / 64.0;
+	color.b = floor(color.b) / (64.0 - 1);
+}
+
+void read_lut_4096x64(inout float3 color)
+{
+	float4 lut_coord;
+	lut_coord.xyz = color.rgb * 63.0;
+	lut_coord.xy = (lut_coord.xy + 0.5) / float2(4096.0, 64.0);
+	lut_coord.x += floor(lut_coord.z) / 64.0;
+	lut_coord.z = frac(lut_coord.z);
+	lut_coord.w = lut_coord.x + 0.015625;
+
+	color.rgb = lerp(tex2D(sLutTexInternal, lut_coord.xy).rgb, tex2D(sLutTexInternal, lut_coord.wy).rgb, lut_coord.z);
 }
 
 float3 palette(in float3 hsl_color, in PaletteStruct p, in float huefactors[7])
@@ -740,17 +764,16 @@ void PS_HistogramGenerate(float4 vpos : SV_Position, float2 uv : TEXCOORD, out f
 }
 #endif
 
-void PS_Lightroom(float4 vpos : SV_Position, float2 uv : TEXCOORD0, float huefactors[7] : TEXCOORD1, out float4 color : SV_Target0)
+void PS_ProcessLUT(float4 vpos : SV_Position, float2 uv : TEXCOORD0, float huefactors[7] : TEXCOORD1, out float4 color : SV_Target0)
 {
 	//ReShade bug :( can't initialize structs the old fashioned/C way
 	static CurvesStruct Curves = setup_curves();
 	static PaletteStruct Palette = setup_palette();
 	static VignetteStruct Vignette = setup_vignette();
 
-	color = tex2D(qUINT::sBackBufferTex, uv);
+	draw_lut_4096x64(color.rgb, vpos.xy);
 
-	if(LIGHTROOM_ENABLE_LUT) 
-		draw_lut(color.rgb, vpos.xy, LIGHTROOM_LUT_TILE_SIZE, LIGHTROOM_LUT_TILE_COUNT, LIGHTROOM_LUT_SCROLL);
+	color.a = 1;
 
 	color.r = curves(color.r, Curves);
 	color.g = curves(color.g, Curves);
@@ -764,11 +787,16 @@ void PS_Lightroom(float4 vpos : SV_Position, float2 uv : TEXCOORD0, float huefac
 	hsl_color = saturate(hsl_color); 
 
 	color.rgb = palette(hsl_color, Palette, huefactors);
+}
 
-	if(LIGHTROOM_ENABLE_VIGNETTE) 
-		color.rgb = get_vignette(color.rgb, uv, Vignette);
+void PS_ApplyLUT(float4 vpos : SV_Position, float2 uv : TEXCOORD0, float huefactors[7] : TEXCOORD1, out float4 color : SV_Target0)
+{
+	color = tex2D(qUINT::sBackBufferTex, uv);
 
-	color.a = 1;
+	if(LIGHTROOM_ENABLE_LUT) 
+		draw_lut(color.rgb, vpos.xy, LIGHTROOM_LUT_TILE_SIZE, LIGHTROOM_LUT_TILE_COUNT, LIGHTROOM_LUT_SCROLL);
+
+	read_lut_4096x64(color.rgb);	
 }
 
 void PS_DisplayStatistics(float4 vpos : SV_Position, float2 uv : TEXCOORD0, float huefactors[7] : TEXCOORD1, out float4 res : SV_Target0)
@@ -820,11 +848,18 @@ technique Lightroom
                "tweak color balance, view a histogram and bake the CC into a 3D LUT.\n"
                "\nLightroom is written by Marty McFly / Pascal Gilcher"; >
 {
-	pass PLightroom
+	pass PProcessLUT
 	{
 		VertexShader = VS_Lightroom;
-		PixelShader = PS_Lightroom;
+		PixelShader = PS_ProcessLUT;
+		RenderTarget = LutTexInternal;
 	}
+	pass PApplyLUT
+	{
+		VertexShader = VS_Lightroom;
+		PixelShader = PS_ApplyLUT;
+	}
+
 	#if(ENABLE_HISTOGRAM == 1)
 	pass PHistogramGenerate
 	{

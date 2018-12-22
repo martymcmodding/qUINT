@@ -128,7 +128,7 @@ uniform float MXAO_SSIL_SATURATION <
 #endif
 
 uniform int MXAO_BLEND_TYPE <
-	ui_type = "drag";
+	ui_type = "slider";
 	ui_min = 0; ui_max = 3;
     ui_label = "Blending Mode";
 	ui_tooltip = "Different blending modes for merging AO/IL with original color.\0Blending mode 0 matches formula of MXAO 2.0 and older.";
