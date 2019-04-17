@@ -28,7 +28,7 @@
 #endif
 
 #ifndef MXAO_ENABLE_IL
- #define MXAO_ENABLE_IL			0	//[0 or 1]	Enables Indirect Lighting calculation. Will cause a major fps hit.
+ #define MXAO_ENABLE_IL			0	//[0 or 1]	    Enables Indirect Lighting calculation. Will cause a major fps hit.
 #endif
 
 #ifndef MXAO_SMOOTHNORMALS
@@ -40,7 +40,7 @@
 #endif
 
 #ifndef MXAO_HQ
- #define MXAO_HQ                0   //[0 or 1]      Enables a different, more physically accurate but slower SSAO mode. Based on Ground Truth Ambient Occlusion by Activision
+ #define MXAO_HQ                0   //[0 or 1]      Enables a different, more physically accurate but slower SSAO mode. Based on Ground Truth Ambient Occlusion by Activision. No IL yet.
 #endif
 
 /*=============================================================================
@@ -62,15 +62,19 @@ uniform float MXAO_SAMPLE_RADIUS <
 	ui_tooltip = "Sample radius of MXAO, higher means more large-scale occlusion with less fine-scale details.";  
     ui_category = "Global";      
 > = 2.5;
+
 #if (MXAO_HQ==0)
-uniform float MXAO_SAMPLE_NORMAL_BIAS <
-	ui_type = "drag";
-	ui_min = 0.0; ui_max = 0.8;
-    ui_label = "Normal Bias";
-	ui_tooltip = "Occlusion Cone bias to reduce self-occlusion of surfaces that have a low angle to each other.";
-    ui_category = "Global";
-> = 0.2;
+    uniform float MXAO_SAMPLE_NORMAL_BIAS <
+        ui_type = "drag";
+        ui_min = 0.0; ui_max = 0.8;
+        ui_label = "Normal Bias";
+        ui_tooltip = "Occlusion Cone bias to reduce self-occlusion of surfaces that have a low angle to each other.";
+        ui_category = "Global";
+    > = 0.2;
+#else
+    #define MXAO_SAMPLE_NORMAL_BIAS 0       //don't break PS which needs this, cleaner this way
 #endif
+
 uniform float MXAO_GLOBAL_RENDER_SCALE <
 	ui_type = "drag";
     ui_label = "Render Size Scale";
@@ -373,7 +377,6 @@ void PS_StencilSetup(in MXAO_VSOUT MXAO, out float4 color : SV_Target0)
     color = 1.0;
 }
 
-#if (MXAO_HQ==0)
 void PS_AmbientObscurance(in MXAO_VSOUT MXAO, out float4 color : SV_Target0)
 {
 	float3 position = get_position_from_uv_mipmapped(MXAO.uv.zw, MXAO, 0);
@@ -435,7 +438,6 @@ void PS_AmbientObscurance(in MXAO_VSOUT MXAO, out float4 color : SV_Target0)
     color *= lerp(MXAO_AMOUNT_COARSE, MXAO_AMOUNT_FINE, layer_id); 
 #endif
 }
-#endif
 
 void PS_AmbientObscuranceHQ(in MXAO_VSOUT MXAO, out float4 color : SV_Target0)
 {
@@ -467,12 +469,7 @@ void PS_AmbientObscuranceHQ(in MXAO_VSOUT MXAO, out float4 color : SV_Target0)
 
 		float3 sliceDir = float3(sample_direction, 0);
 		float2 h = -1.0;
-#if(MXAO_ENABLE_IL != 0)
-        float4 il_uv = MXAO.uv.zwzw;
-        float3 il_vector[2]; 
-        il_vector[0] = 0; 
-        il_vector[1] = 0;
-#endif
+
 		[loop]
 		for(int j = 0; j < stepshalf; j++)
 		{
@@ -490,13 +487,9 @@ void PS_AmbientObscuranceHQ(in MXAO_VSOUT MXAO, out float4 color : SV_Target0)
 
 			float2 sample_h = float2(dot(occlusion_vector[0], viewdir), 
 								     dot(occlusion_vector[1], viewdir)) * inv_distance;
+            
+            sample_h = lerp(sample_h, h, saturate( occlusion_distance_squared * falloff_factor));
 
-			sample_h = lerp(sample_h, h, saturate( occlusion_distance_squared * falloff_factor));
-#if(MXAO_ENABLE_IL != 0)
-            il_uv = sample_h.xxyy > h.xxyy ? sample_uv : il_uv;
-            il_vector[0] = sample_h.x > h.x ? occlusion_vector[0] : il_vector[0]; 
-            il_vector[1] = sample_h.y > h.y ? occlusion_vector[1] : il_vector[1]; 
-#endif
 			h.xy = (sample_h > h) ? sample_h : lerp(sample_h, h, 0.75);	       
 			start += sample_direction;
 		}
@@ -512,29 +505,12 @@ void PS_AmbientObscuranceHQ(in MXAO_VSOUT MXAO, out float4 color : SV_Target0)
 		h = acos(min(h, 1));
 
 		h.x = gamma + max(-h.x - gamma, -1.5707963);
-		h.y = gamma + min( h.y - gamma,  1.5707963);		
+		h.y = gamma + min( h.y - gamma,  1.5707963);
 
-		float2 sample_occlusion = (cos_gamma + 2 * h * sin(gamma) - cos(2 * h - gamma));
+        h *= 2;		
+
+		float2 sample_occlusion = cos_gamma + h * sin(gamma) - cos(h - gamma);
 		color.w += proj_length * dot(sample_occlusion, 0.25); 
-
-#if(MXAO_ENABLE_IL != 0)
-        float left_occlusion = proj_length * sample_occlusion.x;  //ignore the * 0.25
-        [branch]
-        if(left_occlusion > 0.01)
-        {
-            float3  sample_indirect_lighting = tex2Dlod(sMXAO_ColorTex, float4(il_uv.xy, 0, 0)).xyz;
-            float3  sample_normal = tex2Dlod(sMXAO_NormalTex, float4(il_uv.xy, 0, 0)).xyz * 2.0 - 1.0;
-            color.rgb += sample_indirect_lighting * left_occlusion * saturate(dot(-sample_normal, il_vector[0]));
-        }
-        float right_occlusion = proj_length * sample_occlusion.y;  //ignore the * 0.25
-        [branch]
-        if(right_occlusion > 0.01)
-        {
-            float3  sample_indirect_lighting = tex2Dlod(sMXAO_ColorTex, float4(il_uv.zw, 0, 0)).xyz;
-            float3  sample_normal = tex2Dlod(sMXAO_NormalTex, float4(il_uv.zw, 0, 0)).xyz * 2.0 - 1.0;
-            color.rgb += sample_indirect_lighting * right_occlusion * saturate(dot(-sample_normal, il_vector[1]));
-        }
-#endif
 	}
 
     color /= directions;
