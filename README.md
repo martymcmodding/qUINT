@@ -1,7 +1,7 @@
 qUINT
 ========================================================
 
-qUINT is a shader framework for ReShade 3, written in its proprietary ReShade FX language. It aims to deliver effects to cover most of ReShade's common use cases in a small and easy package. Notable properties:
+qUINT is a shader framework for ReShade 4, written in its proprietary ReShade FX language. It aims to deliver effects to cover most of ReShade's common use cases in a small and easy package. Notable properties:
 
 * Next-gen effects abstracted behind intuitive controls
 * Highly polished code for best quality and performance, taking care of many artifacts similar implementations suffer from
