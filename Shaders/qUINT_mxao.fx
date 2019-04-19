@@ -443,6 +443,11 @@ void PS_AmbientObscuranceHQ(in MXAO_VSOUT MXAO, out float4 color : SV_Target0)
 {
 	float3 position = get_position_from_uv_mipmapped(MXAO.uv.zw, MXAO, 0);
 	float3 normal 	= tex2D(sMXAO_NormalTex, MXAO.uv.zw).xyz * 2.0 - 1.0;	
+
+#if(MXAO_SMOOTHNORMALS != 0)
+    smooth_normals(normal, position, MXAO);
+#endif
+
 	float3 viewdir 	= normalize(-position);
 
 	int directions = 2 + floor(MXAO.samples / 32) * 2;
