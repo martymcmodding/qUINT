@@ -135,7 +135,7 @@ SSR_VSOUT VS_SSR(in uint id : SV_VertexID)
     //o.uvtoviewADD = float3(-1.0,-1.0,1.0);
     //o.uvtoviewMUL = float3(2.0,2.0,0.0);
 
-    o.uvtoviewADD = float3(-tan(radians(SSR_FIELD_OF_VIEW * 0.5)).xx,1.0) * float3(qUINT::ASPECT_RATIO, 1);
+    o.uvtoviewADD = float3(-tan(radians(SSR_FIELD_OF_VIEW * 0.5)).xx,1.0) * qUINT::ASPECT_RATIO.yxx;
 	o.uvtoviewMUL = float3(-2.0 * o.uvtoviewADD.xy,0.0);
 
     return o;
