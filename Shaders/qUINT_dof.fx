@@ -7,7 +7,7 @@
    		paypal.me/mcflypg
    		patreon.com/mcflypg
 
-   	Advanced Depth of Field "ADOF"
+   	Advanced Depth of Field "ADoF"
     by Marty McFly / P.Gilcher
     part of qUINT shader library for ReShade 3
 
