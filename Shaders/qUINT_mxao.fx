@@ -656,7 +656,7 @@ technique MXAO
 	{
 		VertexShader = VS_MXAO;
 		PixelShader  = PS_SpatialFilter1;
-        RenderTarget = qUINT::CommonTex1;
+        RenderTarget = CommonTex1;
 	}
 	pass
 	{
