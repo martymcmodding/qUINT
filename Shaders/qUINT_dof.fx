@@ -9,7 +9,7 @@
 
    	Advanced Depth of Field "ADoF"
     by Marty McFly / P.Gilcher
-    part of qUINT shader library for ReShade 3
+    part of qUINT shader library for ReShade 4
 
     CC BY-NC-ND 3.0 licensed.
 
