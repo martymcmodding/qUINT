@@ -325,7 +325,7 @@ void PS_SSR(in SSR_VSOUT i, out float4 reflection : SV_Target0, out float4 blurb
 
 	trace.hit = k != 0;	//we did refinements -> we initially found an intersection
 
-	float SSR_FRESNEL_K = 0.0; //matches most surfaces
+	float SSR_FRESNEL_K = 0.04; //matches most surfaces
 	//Van Damme between physically correct and  total artistic nonsense
 	float schlick = lerp(SSR_FRESNEL_K, 1, pow(saturate(1 - dot(-scene.eyedir, scene.normal)), SSR_FRESNEL_EXP)) * SSR_REFLECTION_INTENSITY;
 	float fade 	  = saturate(dot(scene.eyedir, ray.dir)) * saturate(1 - dot(-scene.eyedir, scene.normal));
