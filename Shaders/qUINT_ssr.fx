@@ -108,10 +108,17 @@ uniform float SSR_RELIEF_SCALE <
 	Textures, Samplers, Globals
 =============================================================================*/
 
+#define QUINT_COMMON_VERSION_REQUIRE 200
 #include "qUINT_common.fxh"
 
 texture2D SSR_ColorTex 	{ Width = BUFFER_WIDTH; Height = BUFFER_HEIGHT; Format = RGBA8; AddressU = MIRROR;};
 sampler2D sSSR_ColorTex	{ Texture = SSR_ColorTex;	};
+
+texture2D CommonTex0 	{ Width = BUFFER_WIDTH;   Height = BUFFER_HEIGHT;   Format = RGBA8; };
+sampler2D sCommonTex0	{ Texture = CommonTex0;	};
+
+texture2D CommonTex1 	{ Width = BUFFER_WIDTH;   Height = BUFFER_HEIGHT;   Format = RGBA8; };
+sampler2D sCommonTex1	{ Texture = CommonTex1;	};
 
 /*=============================================================================
 	Vertex Shader
@@ -339,7 +346,7 @@ void PS_SSR(in SSR_VSOUT i, out float4 reflection : SV_Target0, out float4 blurb
 void spatial_blur_data(inout BlurData o, in sampler inputsampler, in float4 uv)
 {
 	o.key 	= tex2Dlod(inputsampler, uv);
-	o.mask 	= tex2Dlod(qUINT::sCommonTex1, uv);
+	o.mask 	= tex2Dlod(sCommonTex1, uv);
 	o.mask.xyz = o.mask.xyz * 2 - 1;
 }
 
@@ -387,13 +394,13 @@ float4 blur_filter(in SSR_VSOUT i, in sampler inputsampler, in float radius, in 
 
 void PS_FilterH(in SSR_VSOUT i, out float4 o : SV_Target0)
 {
-	o = blur_filter(i, qUINT::sCommonTex0, SSR_FILTER_SIZE, float2(0, 1) * qUINT::PIXEL_SIZE);
+	o = blur_filter(i, sCommonTex0, SSR_FILTER_SIZE, float2(0, 1) * qUINT::PIXEL_SIZE);
 }
 
 void PS_FilterV(in SSR_VSOUT i, out float4 o : SV_Target0)
 {
 	float4 reflection = blur_filter(i, sSSR_ColorTex, SSR_FILTER_SIZE, float2(1, 0) * qUINT::PIXEL_SIZE);
-	float alpha = reflection.w; //tex2D(qUINT::sCommonTex0, i.uv).w;
+	float alpha = reflection.w; //tex2D(sCommonTex0, i.uv).w;
 
 	float fade = saturate(1 - qUINT::linear_depth(i.uv) / SSR_FADE_DIST);
 	o = tex2D(qUINT::sBackBufferTex, i.uv);
@@ -422,8 +429,8 @@ technique SSR
 	{
 		VertexShader = VS_SSR;
 		PixelShader  = PS_SSR;
-		RenderTarget0 = qUINT::CommonTex0;
-		RenderTarget1 = qUINT::CommonTex1;
+		RenderTarget0 = CommonTex0;
+		RenderTarget1 = CommonTex1;
 	}
 	pass
 	{

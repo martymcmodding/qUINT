@@ -1,24 +1,48 @@
-/*
-	DO NOT EDIT
-	DO NOT EDIT
-	DO NOT EDIT
 
-	I cannot stress this enough - if you don't want to break
-	EVERY shader that depends on this file, do not edit.
+
+
+/*
+	changelog:
+
+	2.0.0:	added frame count parameter
+			added versioning system
+			removed common textures - should only be declared if needed
+			flipped reversed depth buffer switch by default as most games use this format
 
 */
 
-#pragma once
+/*=============================================================================
+	Version checks
+=============================================================================*/
 
-#if !defined(__RESHADE__) || __RESHADE__ < 40000
-	#error "ReShade 4.0+ is required to use this header file"
+#ifndef QUINT_COMMON_VERSION
+ #define QUINT_COMMON_VERSION 200
 #endif
 
+#if QUINT_COMMON_VERSION_REQUIRE > QUINT_COMMON_VERSION
+ #error "qUINT_common.fxh outdated."
+ #error "Please download update from github.com/martymcmodding/qUINT"
+#endif
+
+#if !defined(QUINT_COMMON_VERSION_REQUIRE)
+ #error "Incompatible qUINT_common.fxh and shaders."
+ #error "Do not mix different file versions."
+#endif
+
+#if !defined(__RESHADE__) || __RESHADE__ < 40000
+	#error "ReShade 4.4+ is required to use this header file"
+#endif
+
+/*=============================================================================
+	Define defaults
+=============================================================================*/
+
+//depth buffer
 #ifndef RESHADE_DEPTH_INPUT_IS_UPSIDE_DOWN
 	#define RESHADE_DEPTH_INPUT_IS_UPSIDE_DOWN 0
 #endif
 #ifndef RESHADE_DEPTH_INPUT_IS_REVERSED
-	#define RESHADE_DEPTH_INPUT_IS_REVERSED 0
+	#define RESHADE_DEPTH_INPUT_IS_REVERSED 1
 #endif
 #ifndef RESHADE_DEPTH_INPUT_IS_LOGARITHMIC
 	#define RESHADE_DEPTH_INPUT_IS_LOGARITHMIC 0
@@ -27,9 +51,14 @@
 	#define RESHADE_DEPTH_LINEARIZATION_FAR_PLANE 1000.0
 #endif
 
+/*=============================================================================
+	Uniforms
+=============================================================================*/
+
 namespace qUINT
 {
-    uniform float FRAME_TIME <source = "frametime";>;
+    uniform float FRAME_TIME < source = "frametime"; >;
+	uniform int FRAME_COUNT < source = "framecount"; >;
 
     static const float2 ASPECT_RATIO 	= float2(1.0, BUFFER_WIDTH * BUFFER_RCP_HEIGHT);
 	static const float2 PIXEL_SIZE 		= float2(BUFFER_RCP_WIDTH, BUFFER_RCP_HEIGHT);
@@ -42,14 +71,7 @@ namespace qUINT
 	sampler sBackBufferTex 	{ Texture = BackBufferTex; 	};
 	sampler sDepthBufferTex { Texture = DepthBufferTex; };
 
-	//reusable textures for the shaders
-    texture2D CommonTex0 	{ Width = BUFFER_WIDTH;   Height = BUFFER_HEIGHT;   Format = RGBA8; };
-    texture2D CommonTex1 	{ Width = BUFFER_WIDTH;   Height = BUFFER_HEIGHT;   Format = RGBA8; };
-
-    sampler2D sCommonTex0	{ Texture = CommonTex0;	};
-    sampler2D sCommonTex1	{ Texture = CommonTex1;	};
-
-    	// Helper functions
+    // Helper functions
 	float linear_depth(float2 uv)
 	{
 #if RESHADE_DEPTH_INPUT_IS_UPSIDE_DOWN
@@ -67,7 +89,7 @@ namespace qUINT
 		const float N = 1.0;
 		depth /= RESHADE_DEPTH_LINEARIZATION_FAR_PLANE - depth * (RESHADE_DEPTH_LINEARIZATION_FAR_PLANE - N);
 
-		return depth;
+		return saturate(depth);
 	}
 }
 

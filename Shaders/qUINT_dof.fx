@@ -218,6 +218,9 @@ uniform float fADOF_ShapeAnamorphRatio <
 	Textures, Samplers, Globals
 =============================================================================*/
 
+#define QUINT_COMMON_VERSION_REQUIRE 200
+#include "qUINT_common.fxh"
+
 #define DISCRADIUS_RESOLUTION_BOUNDARY_LOWER 	0.25//1.0	//used for blending blurred scene.
 #define DISCRADIUS_RESOLUTION_BOUNDARY_UPPER 	2.0//6.0	//used for blending blurred scene.
 #define DISCRADIUS_RESOLUTION_BOUNDARY_CURVE    0.5		//used for blending blurred scene.
@@ -225,13 +228,17 @@ uniform float fADOF_ShapeAnamorphRatio <
 #define FPS_HAND_BLUR_CUTOFF_CHECK		0		//blur = max if depth > hand depth, else 0, useful for tweaking above param
 #define GAUSSIAN_BUILDUP_MULT			4.0		//value of x -> gaussian reaches max radius at |CoC| == 1/x
 
-#include "qUINT_common.fxh"
-
 texture2D ADOF_FocusTex 	    { Format = R16F; };
 texture2D ADOF_FocusTexPrev     { Format = R16F; };
 
 sampler2D sADOF_FocusTex	    { Texture = ADOF_FocusTex; };
 sampler2D sADOF_FocusTexPrev	{ Texture = ADOF_FocusTexPrev; };
+
+texture2D CommonTex0 	{ Width = BUFFER_WIDTH;   Height = BUFFER_HEIGHT;   Format = RGBA8; };
+sampler2D sCommonTex0	{ Texture = CommonTex0;	};
+
+texture2D CommonTex1 	{ Width = BUFFER_WIDTH;   Height = BUFFER_HEIGHT;   Format = RGBA8; };
+sampler2D sCommonTex1	{ Texture = CommonTex1;	};
 
 /*=============================================================================
 	Vertex Shader
@@ -441,7 +448,7 @@ float4 PS_DoF_Main(in ADOF_VSOUT IN) : SV_Target0
 	if(max(IN.txcoord.z,IN.txcoord.w) > 1.01) discard;
 
 	float4 BokehSum, BokehMax;
-	BokehMax		           = tex2D(qUINT::sCommonTex0, IN.txcoord.zw);
+	BokehMax		           = tex2D(sCommonTex0, IN.txcoord.zw);
     BokehSum                   = BokehMax;
 	float weightSum 		   = 1.0;
 	float CoC 			       = abs(BokehSum.w * 2.0 - 1.0);
@@ -475,7 +482,7 @@ float4 PS_DoF_Main(in ADOF_VSOUT IN) : SV_Target0
                 float2 sampleOffset = lerp(IN.offset0.xy,IN.offset0.zw,iSamplesPerRing/iRings);
                 ShapeRoundness(sampleOffset,fADOF_ShapeCurvatureAmount);
 
-                float4 sampleBokeh 	= tex2Dlod(qUINT::sCommonTex0, float4(IN.txcoord.zw + sampleOffset.xy * (bokehRadiusScaled * iRings),0,0));
+                float4 sampleBokeh 	= tex2Dlod(sCommonTex0, float4(IN.txcoord.zw + sampleOffset.xy * (bokehRadiusScaled * iRings),0,0));
                 float sampleWeight	= saturate(1e6 * (abs(sampleBokeh.a * 2.0 - 1.0) - CoC * (float)iRings) + 1.0);
 
 #if (ADOF_OPTICAL_VIGNETTE_ENABLE != 0)
@@ -497,7 +504,7 @@ float4 PS_DoF_Main(in ADOF_VSOUT IN) : SV_Target0
 
 void PS_DoF_Combine(in ADOF_VSOUT IN, out float4 color : SV_Target0)
 {
-	float4 blurredColor = tex2D(qUINT::sCommonTex1, IN.txcoord.xy * fADOF_RenderResolutionMult);
+	float4 blurredColor = tex2D(sCommonTex1, IN.txcoord.xy * fADOF_RenderResolutionMult);
 	float4 originalColor  = tex2D(qUINT::sBackBufferTex, IN.txcoord.xy);
 
 	float CoC 		= abs(CircleOfConfusion(IN.txcoord.xy, 0));
@@ -513,7 +520,7 @@ void PS_DoF_Combine(in ADOF_VSOUT IN, out float4 color : SV_Target0)
 
 void PS_DoF_Gauss1(in ADOF_VSOUT IN, out float4 color : SV_Target0)
 {
-	float4 centerTap = tex2D(qUINT::sCommonTex0, IN.txcoord.xy);
+	float4 centerTap = tex2D(sCommonTex0, IN.txcoord.xy);
     float CoC = abs(centerTap.a * 2.0 - 1.0);
 
     float nSteps 		= floor(CoC * (fADOF_SmootheningAmount + 0.0));
@@ -528,7 +535,7 @@ void PS_DoF_Gauss1(in ADOF_VSOUT IN, out float4 color : SV_Target0)
 		float currentWeight = exp(iStep * iStep * expCoeff);
 		float currentOffset = 2.0 * iStep - 0.5; //Sample between texels to double blur width at no cost
 
-		float4 currentTap = tex2Dlod(qUINT::sCommonTex0, float4(IN.txcoord.xy + blurAxisScaled.xy * currentOffset, 0, 0));
+		float4 currentTap = tex2Dlod(sCommonTex0, float4(IN.txcoord.xy + blurAxisScaled.xy * currentOffset, 0, 0));
 		currentWeight *= saturate(abs(currentTap.a * 2.0 - 1.0) - CoC * 0.25); //bleed fix
 
 		gaussianSum += currentTap * currentWeight;
@@ -543,7 +550,7 @@ void PS_DoF_Gauss1(in ADOF_VSOUT IN, out float4 color : SV_Target0)
 
 void PS_DoF_Gauss2(in ADOF_VSOUT IN, out float4 color : SV_Target0)
 {
-	float4 centerTap = tex2D(qUINT::sCommonTex1, IN.txcoord.xy);
+	float4 centerTap = tex2D(sCommonTex1, IN.txcoord.xy);
     float CoC = abs(centerTap.a * 2.0 - 1.0);
 
 	float nSteps 		= min(50,floor(CoC * (fADOF_SmootheningAmount + 0.0)));
@@ -558,7 +565,7 @@ void PS_DoF_Gauss2(in ADOF_VSOUT IN, out float4 color : SV_Target0)
 		float currentWeight = exp(iStep * iStep * expCoeff);
 		float currentOffset = 2.0 * iStep - 0.5; //Sample between texels to double blur width at no cost
 
-		float4 currentTap = tex2Dlod(qUINT::sCommonTex1, float4(IN.txcoord.xy + blurAxisScaled.xy * currentOffset, 0, 0));
+		float4 currentTap = tex2Dlod(sCommonTex1, float4(IN.txcoord.xy + blurAxisScaled.xy * currentOffset, 0, 0));
 		currentWeight *= saturate(abs(currentTap.a * 2.0 - 1.0) - CoC * 0.25); //bleed fix
 
 		gaussianSum += currentTap * currentWeight;
@@ -577,11 +584,11 @@ void PS_DoF_ChromaticAberration(in ADOF_VSOUT IN, out float4 color : SV_Target0)
 	float4 colorVals[5];
     float3 neighbourOffsets = float3(qUINT::PIXEL_SIZE.xy, 0);
 
-    colorVals[0] = tex2D(qUINT::sCommonTex0, IN.txcoord.xy);                       //C
-    colorVals[1] = tex2D(qUINT::sCommonTex0, IN.txcoord.xy - neighbourOffsets.xz); //L
-    colorVals[2] = tex2D(qUINT::sCommonTex0, IN.txcoord.xy - neighbourOffsets.zy); //T
-    colorVals[3] = tex2D(qUINT::sCommonTex0, IN.txcoord.xy + neighbourOffsets.xz); //R
-    colorVals[4] = tex2D(qUINT::sCommonTex0, IN.txcoord.xy + neighbourOffsets.zy); //B
+    colorVals[0] = tex2D(sCommonTex0, IN.txcoord.xy);                       //C
+    colorVals[1] = tex2D(sCommonTex0, IN.txcoord.xy - neighbourOffsets.xz); //L
+    colorVals[2] = tex2D(sCommonTex0, IN.txcoord.xy - neighbourOffsets.zy); //T
+    colorVals[3] = tex2D(sCommonTex0, IN.txcoord.xy + neighbourOffsets.xz); //R
+    colorVals[4] = tex2D(sCommonTex0, IN.txcoord.xy + neighbourOffsets.zy); //B
 
 	float CoC 			= abs(colorVals[0].a * 2.0 - 1.0);
 	float2 bokehRadiusScaled	= CoC2BlurRadius(CoC);
@@ -599,8 +606,8 @@ void PS_DoF_ChromaticAberration(in ADOF_VSOUT IN, out float4 color : SV_Target0)
 	float4 chromaVals[3];
 
 	chromaVals[0] = colorVals[0];
-	chromaVals[1] = tex2D(qUINT::sCommonTex0, IN.txcoord.xy + vGrad);
-	chromaVals[2] = tex2D(qUINT::sCommonTex0, IN.txcoord.xy - vGrad);
+	chromaVals[1] = tex2D(sCommonTex0, IN.txcoord.xy + vGrad);
+	chromaVals[2] = tex2D(sCommonTex0, IN.txcoord.xy - vGrad);
 
 	chromaVals[1].rgb = lerp(chromaVals[0].rgb, chromaVals[1].rgb, saturate(4.0 * abs(chromaVals[1].w)));
 	chromaVals[2].rgb = lerp(chromaVals[0].rgb, chromaVals[2].rgb, saturate(4.0 * abs(chromaVals[2].w)));
@@ -648,32 +655,32 @@ technique ADOF
 	{
 		VertexShader = VS_ADOF;
 		PixelShader  = PS_CoC;
-        RenderTarget = qUINT::CommonTex0;
+        RenderTarget = CommonTex0;
 	}
     pass
     {
         VertexShader = VS_ADOF;
         PixelShader  = PS_DoF_Main;
-        RenderTarget = qUINT::CommonTex1;
+        RenderTarget = CommonTex1;
     }
     pass
     {
         VertexShader = VS_ADOF;
         PixelShader  = PS_DoF_Combine;
-        RenderTarget = qUINT::CommonTex0;
+        RenderTarget = CommonTex0;
     }
     pass
     {
         VertexShader = VS_ADOF;
         PixelShader  = PS_DoF_Gauss1;
-        RenderTarget = qUINT::CommonTex1;
+        RenderTarget = CommonTex1;
     }      
 #if(ADOF_CHROMATIC_ABERRATION_ENABLE != 0)
     pass
     {
         VertexShader = VS_ADOF;
         PixelShader  = PS_DoF_Gauss2;
-        RenderTarget = qUINT::CommonTex0;
+        RenderTarget = CommonTex0;
     }
     pass
     {

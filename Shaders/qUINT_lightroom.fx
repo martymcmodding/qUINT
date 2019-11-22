@@ -472,6 +472,7 @@ uniform int LIGHTROOM_VIGNETTE_BLEND_MODE <
 	Textures, Samplers, Globals
 =============================================================================*/
 
+#define QUINT_COMMON_VERSION_REQUIRE 200
 #include "qUINT_common.fxh"
 
 #if(ENABLE_HISTOGRAM == 1)
