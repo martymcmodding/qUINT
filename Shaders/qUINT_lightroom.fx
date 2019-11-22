@@ -769,7 +769,6 @@ void PS_ProcessLUT(float4 vpos : SV_Position, float2 uv : TEXCOORD0, float huefa
 	//ReShade bug :( can't initialize structs the old fashioned/C way
 	static CurvesStruct Curves = setup_curves();
 	static PaletteStruct Palette = setup_palette();
-	static VignetteStruct Vignette = setup_vignette();
 
 	draw_lut_4096x64(color.rgb, vpos.xy);
 
@@ -802,8 +801,11 @@ void PS_ApplyLUT(float4 vpos : SV_Position, float2 uv : TEXCOORD0, float huefact
 void PS_DisplayStatistics(float4 vpos : SV_Position, float2 uv : TEXCOORD0, float huefactors[7] : TEXCOORD1, out float4 res : SV_Target0)
 {
 	static CurvesStruct Curves = setup_curves();
+	static VignetteStruct Vignette = setup_vignette();
 
 	float4 color = tex2D(qUINT::sBackBufferTex,uv);
+	if(LIGHTROOM_ENABLE_VIGNETTE) color.rgb = get_vignette(color.rgb, uv, Vignette);
+
 	float2 vposfbl = float2(vpos.x, BUFFER_HEIGHT-vpos.y);
 	float2 vposfbl_n = vposfbl / 255.0;
 
