@@ -15,16 +15,16 @@
 	Version checks
 =============================================================================*/
 
-#ifndef QUINT_COMMON_VERSION
- #define QUINT_COMMON_VERSION 200
+#ifndef RESHADE_QUINT_COMMON_VERSION
+ #define RESHADE_QUINT_COMMON_VERSION 200
 #endif
 
-#if QUINT_COMMON_VERSION_REQUIRE > QUINT_COMMON_VERSION
+#if RESHADE_QUINT_COMMON_VERSION_REQUIRE > RESHADE_QUINT_COMMON_VERSION
  #error "qUINT_common.fxh outdated."
  #error "Please download update from github.com/martymcmodding/qUINT"
 #endif
 
-#if !defined(QUINT_COMMON_VERSION_REQUIRE)
+#if !defined(RESHADE_QUINT_COMMON_VERSION_REQUIRE)
  #error "Incompatible qUINT_common.fxh and shaders."
  #error "Do not mix different file versions."
 #endif

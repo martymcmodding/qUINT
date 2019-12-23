@@ -108,7 +108,7 @@ uniform float SSR_RELIEF_SCALE <
 	Textures, Samplers, Globals
 =============================================================================*/
 
-#define QUINT_COMMON_VERSION_REQUIRE 200
+#define RESHADE_QUINT_COMMON_VERSION_REQUIRE 200
 #include "qUINT_common.fxh"
 
 texture2D SSR_ColorTex 	{ Width = BUFFER_WIDTH; Height = BUFFER_HEIGHT; Format = RGBA8; AddressU = MIRROR;};

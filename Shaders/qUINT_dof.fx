@@ -218,7 +218,7 @@ uniform float fADOF_ShapeAnamorphRatio <
 	Textures, Samplers, Globals
 =============================================================================*/
 
-#define QUINT_COMMON_VERSION_REQUIRE 200
+#define RESHADE_QUINT_COMMON_VERSION_REQUIRE 200
 #include "qUINT_common.fxh"
 
 #define DISCRADIUS_RESOLUTION_BOUNDARY_LOWER 	0.25//1.0	//used for blending blurred scene.
