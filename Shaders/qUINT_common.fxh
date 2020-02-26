@@ -104,7 +104,7 @@ namespace qUINT
 		uv.y /= RESHADE_DEPTH_INPUT_Y_SCALE;
 		uv.x -= RESHADE_DEPTH_INPUT_X_OFFSET / 2.000000001;
 		uv.y += RESHADE_DEPTH_INPUT_Y_OFFSET / 2.000000001;
-		float depth = tex2Dlod(DepthBuffer, float4(uv, 0, 0)).x * RESHADE_DEPTH_MULTIPLIER;
+		float depth = tex2Dlod(sDepthBufferTex, float4(uv, 0, 0)).x * RESHADE_DEPTH_MULTIPLIER;
 
 #if RESHADE_DEPTH_INPUT_IS_LOGARITHMIC
 		const float C = 0.01;
