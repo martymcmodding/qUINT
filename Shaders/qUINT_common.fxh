@@ -51,6 +51,29 @@
 	#define RESHADE_DEPTH_LINEARIZATION_FAR_PLANE 1000.0
 #endif
 
+#ifndef RESHADE_DEPTH_MULTIPLIER
+	#define RESHADE_DEPTH_MULTIPLIER 1
+#endif
+#ifndef RESHADE_DEPTH_LINEARIZATION_FAR_PLANE
+	#define RESHADE_DEPTH_LINEARIZATION_FAR_PLANE 1000.0
+#endif
+
+// Above 1 expands coordinates, below 1 contracts and 1 is equal to no scaling on any axis
+#ifndef RESHADE_DEPTH_INPUT_Y_SCALE
+	#define RESHADE_DEPTH_INPUT_Y_SCALE 1
+#endif
+#ifndef RESHADE_DEPTH_INPUT_X_SCALE
+	#define RESHADE_DEPTH_INPUT_X_SCALE 1
+#endif
+// An offset to add to the Y coordinate, (+) = move up, (-) = move down
+#ifndef RESHADE_DEPTH_INPUT_Y_OFFSET
+	#define RESHADE_DEPTH_INPUT_Y_OFFSET 0
+#endif
+// An offset to add to the X coordinate, (+) = move right, (-) = move left
+#ifndef RESHADE_DEPTH_INPUT_X_OFFSET
+	#define RESHADE_DEPTH_INPUT_X_OFFSET 0
+#endif
+
 /*=============================================================================
 	Uniforms
 =============================================================================*/
@@ -77,7 +100,11 @@ namespace qUINT
 #if RESHADE_DEPTH_INPUT_IS_UPSIDE_DOWN
 		uv.y = 1.0 - uv.y;
 #endif
-		float depth = tex2Dlod(sDepthBufferTex, float4(uv, 0, 0)).x;
+		uv.x /= RESHADE_DEPTH_INPUT_X_SCALE;
+		uv.y /= RESHADE_DEPTH_INPUT_Y_SCALE;
+		uv.x -= RESHADE_DEPTH_INPUT_X_OFFSET / 2.000000001;
+		uv.y += RESHADE_DEPTH_INPUT_Y_OFFSET / 2.000000001;
+		float depth = tex2Dlod(DepthBuffer, float4(uv, 0, 0)).x * RESHADE_DEPTH_MULTIPLIER;
 
 #if RESHADE_DEPTH_INPUT_IS_LOGARITHMIC
 		const float C = 0.01;
