@@ -765,7 +765,7 @@ void PS_HistogramGenerate(float4 vpos : SV_Position, float2 uv : TEXCOORD, out f
 }
 #endif
 
-void PS_ProcessLUT(float4 vpos : SV_Position, float2 uv : TEXCOORD0, float huefactors[7] : TEXCOORD1, out float4 color : SV_Target0)
+void PS_ProcessLUT(float4 vpos : SV_Position, float2 uv : TEXCOORD0, nointerpolation float huefactors[7] : TEXCOORD1, out float4 color : SV_Target0)
 {
 	//ReShade bug :( can't initialize structs the old fashioned/C way
 	static CurvesStruct Curves = setup_curves();
@@ -789,7 +789,7 @@ void PS_ProcessLUT(float4 vpos : SV_Position, float2 uv : TEXCOORD0, float huefa
 	color.rgb = palette(hsl_color, Palette, huefactors);
 }
 
-void PS_ApplyLUT(float4 vpos : SV_Position, float2 uv : TEXCOORD0, float huefactors[7] : TEXCOORD1, out float4 color : SV_Target0)
+void PS_ApplyLUT(float4 vpos : SV_Position, float2 uv : TEXCOORD0, nointerpolation float huefactors[7] : TEXCOORD1, out float4 color : SV_Target0)
 {
 	color = tex2D(qUINT::sBackBufferTex, uv);
 
@@ -799,7 +799,7 @@ void PS_ApplyLUT(float4 vpos : SV_Position, float2 uv : TEXCOORD0, float huefact
 	read_lut_4096x64(color.rgb);	
 }
 
-void PS_DisplayStatistics(float4 vpos : SV_Position, float2 uv : TEXCOORD0, float huefactors[7] : TEXCOORD1, out float4 res : SV_Target0)
+void PS_DisplayStatistics(float4 vpos : SV_Position, float2 uv : TEXCOORD0, nointerpolation float huefactors[7] : TEXCOORD1, out float4 res : SV_Target0)
 {
 	static CurvesStruct Curves = setup_curves();
 	static VignetteStruct Vignette = setup_vignette();
