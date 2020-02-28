@@ -129,11 +129,10 @@ uniform float BLOOM_TONEMAP_COMPRESSION <
 #define RESHADE_QUINT_COMMON_VERSION_REQUIRE 200
 #include "qUINT_common.fxh"
 
-#define CONST_LOG2(v) (((v) & 0xAAAAAAAA) != 0) | ((((v) & 0xFFFF0000) != 0) << 4) | ((((v) & 0xFF00FF00) != 0) << 3) | ((((v) & 0xF0F0F0F0) != 0) << 2) | ((((v) & 0xCCCCCCCC) != 0) << 1)
-
+#define INT_LOG2(v)   (((v >> 1) != 0) + ((v >> 2) != 0) + ((v >> 3) != 0) + ((v >> 4) != 0) + ((v >> 5) != 0) + ((v >> 6) != 0) + ((v >> 7) != 0) + ((v >> 8) != 0) + ((v >> 9) != 0) + ((v >> 10) != 0) + ((v >> 11) != 0) + ((v >> 12) != 0) + ((v >> 13) != 0) + ((v >> 14) != 0) + ((v >> 15) != 0) + ((v >> 16) != 0))
 
 //static const int BloomTex7_LowestMip = int(log(BUFFER_HEIGHT/128) / log(2)) + 1;
-static const int BloomTex7_LowestMip = CONST_LOG2(BUFFER_HEIGHT/128);
+static const int BloomTex7_LowestMip = INT_LOG2(BUFFER_HEIGHT/128);
 
 texture2D MXBLOOM_BloomTexSource 	{ Width = BUFFER_WIDTH/2; 	Height = BUFFER_HEIGHT/2;    Format = RGBA16F;};
 texture2D MXBLOOM_BloomTex1 		{ Width = BUFFER_WIDTH/2; 	Height = BUFFER_HEIGHT/2;    Format = RGBA16F;};
