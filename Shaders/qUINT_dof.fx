@@ -136,6 +136,15 @@ uniform float fADOF_BokehIntensity <
     ui_category = "Bokeh";
 > = 0.3;
 
+uniform int iADOF_BokehMode <
+    ui_type = "slider";
+    ui_min = 0;
+    ui_max = 3;
+    ui_label = "Bokeh highlight type";
+    ui_tooltip = "Different methods to emphasize bokeh sprites";
+    ui_category = "Bokeh";
+> = 2;
+
 uniform int iADOF_ShapeVertices <
     ui_type = "drag";
     ui_min = 3;
@@ -443,6 +452,16 @@ void PS_CoC(in ADOF_VSOUT IN, out float4 color : SV_Target0)
     color.w = saturate(color.w * 0.5 + 0.5);
 }
 
+void unpack_hdr(inout float3 color)
+{
+    color = color * rcp(1.2 - saturate(color));    
+}
+
+void pack_hdr(inout float3 color)
+{
+    color = 1.2 * color * rcp(color + 1.0);
+}
+
 float4 PS_DoF_Main(in ADOF_VSOUT IN) : SV_Target0
 {
 	if(max(IN.txcoord.z,IN.txcoord.w) > 1.01) discard;
@@ -499,7 +518,50 @@ float4 PS_DoF_Main(in ADOF_VSOUT IN) : SV_Target0
         IN.offset0.zw = mul(IN.offset0.zw, IN.offsmat);
     }
 
-    return lerp(BokehSum / weightSum, BokehMax, fADOF_BokehIntensity * saturate(CoC*nRings*2.0));
+   // return lerp(BokehSum / weightSum, BokehMax, fADOF_BokehIntensity * saturate(CoC*nRings*2.0));
+
+   float4 ret = 0;
+
+   BokehSum /= weightSum;
+
+   unpack_hdr(BokehSum.rgb);
+   unpack_hdr(BokehMax.rgb);
+
+   	if(iADOF_BokehMode == 0)
+	{
+		ret = lerp(BokehSum, BokehMax, fADOF_BokehIntensity * saturate(CoC * nRings * 2.0));
+	}	
+	else if(iADOF_BokehMode == 1)
+	{		
+
+		float maxlum = dot(float3(0.3, 0.59, 0.11), BokehMax.rgb);
+		float avglum = dot(float3(0.3, 0.59, 0.11), BokehSum.rgb);
+
+		ret = BokehSum * lerp(avglum, maxlum, fADOF_BokehIntensity * saturate(CoC * nRings * 2.0)) / avglum;
+	}
+	else if(iADOF_BokehMode == 2)
+	{
+		float maxlum = dot(float3(0.3, 0.59, 0.11), BokehMax.rgb);
+		float avglum = dot(float3(0.3, 0.59, 0.11), BokehSum.rgb);
+
+		float bokehweight = max(0, maxlum - avglum);
+		bokehweight = bokehweight * fADOF_BokehIntensity * 2.0;
+		bokehweight *= bokehweight;
+
+		ret = BokehSum + BokehMax * saturate(bokehweight * CoC * nRings);
+	}
+	else if(iADOF_BokehMode == 3)
+	{
+		float maxlum = dot(float3(0.3, 0.59, 0.11), BokehMax.rgb);
+		float avglum = dot(float3(0.3, 0.59, 0.11), BokehSum.rgb);
+
+		float bokehweight = maxlum - avglum;
+		ret = lerp(BokehSum, BokehMax, saturate(bokehweight * CoC * nRings * fADOF_BokehIntensity));
+	}
+
+	pack_hdr(ret.rgb);
+
+	return ret;
 }
 
 void PS_DoF_Combine(in ADOF_VSOUT IN, out float4 color : SV_Target0)
