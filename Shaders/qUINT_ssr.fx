@@ -11,7 +11,7 @@
     by Marty McFly / P.Gilcher
     part of qUINT shader library for ReShade 4
 
-    CC BY-NC-ND 3.0 licensed.
+    Copyright (c) Pascal Gilcher / Marty McFly. All rights reserved.
 
 =============================================================================*/
 
@@ -108,7 +108,8 @@ uniform float SSR_RELIEF_SCALE <
 	Textures, Samplers, Globals
 =============================================================================*/
 
-#define RESHADE_QUINT_COMMON_VERSION_REQUIRE 200
+#define RESHADE_QUINT_COMMON_VERSION_REQUIRE    202
+#define RESHADE_QUINT_EFFECT_DEPTH_REQUIRE      //effect requires depth access
 #include "qUINT_common.fxh"
 
 texture2D SSR_ColorTex 	{ Width = BUFFER_WIDTH; Height = BUFFER_HEIGHT; Format = RGBA8; AddressU = MIRROR;};

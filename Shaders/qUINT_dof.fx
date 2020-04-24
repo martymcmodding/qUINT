@@ -11,7 +11,7 @@
     by Marty McFly / P.Gilcher
     part of qUINT shader library for ReShade 4
 
-    CC BY-NC-ND 3.0 licensed.
+    Copyright (c) Pascal Gilcher / Marty McFly. All rights reserved.
 
 =============================================================================*/
 
@@ -227,7 +227,8 @@ uniform float fADOF_ShapeAnamorphRatio <
 	Textures, Samplers, Globals
 =============================================================================*/
 
-#define RESHADE_QUINT_COMMON_VERSION_REQUIRE 200
+#define RESHADE_QUINT_COMMON_VERSION_REQUIRE    202
+#define RESHADE_QUINT_EFFECT_DEPTH_REQUIRE      //effect requires depth access
 #include "qUINT_common.fxh"
 
 #define DISCRADIUS_RESOLUTION_BOUNDARY_LOWER 	0.25//1.0	//used for blending blurred scene.

@@ -1,6 +1,4 @@
 
-
-
 /*
 	changelog:
 
@@ -8,6 +6,9 @@
 			added versioning system
 			removed common textures - should only be declared if needed
 			flipped reversed depth buffer switch by default as most games use this format
+	2.0.1:  added more depth scaling parameters to match ReShade.fxh
+	2.0.2:  added UI for depth linearization when loaded by NVIDIA FreeStyle/Ansel
+			with cue given by effect if depth is required
 
 */
 
@@ -16,7 +17,7 @@
 =============================================================================*/
 
 #ifndef RESHADE_QUINT_COMMON_VERSION
- #define RESHADE_QUINT_COMMON_VERSION 201
+ #define RESHADE_QUINT_COMMON_VERSION 202
 #endif
 
 #if RESHADE_QUINT_COMMON_VERSION_REQUIRE > RESHADE_QUINT_COMMON_VERSION
@@ -71,6 +72,24 @@
 #endif
 
 /*=============================================================================
+	Depth UI
+=============================================================================*/
+
+#if defined(__RESHADE_FXC__)
+//if using FreeStyle or Ansel and effect requires depth, make UI toggle
+//available. If not, replace with dummy which is unused anyways.
+#if defined(RESHADE_QUINT_EFFECT_DEPTH_REQUIRE)
+	uniform bool UI_RESHADE_DEPTH_INPUT_IS_REVERSED <
+	    ui_type = "bool";
+	    ui_label = "Depth input is reversed";
+	> = RESHADE_DEPTH_INPUT_IS_REVERSED; //use default preprocessor setting
+#else
+ 	#define UI_RESHADE_DEPTH_INPUT_IS_REVERSED RESHADE_DEPTH_INPUT_IS_REVERSED
+#endif
+
+#endif
+
+/*=============================================================================
 	Uniforms
 =============================================================================*/
 
@@ -114,8 +133,12 @@ namespace qUINT
 		const float C = 0.01;
 		depth = (exp(depth * log(C + 1.0)) - 1.0) / C;
 #endif
+#if defined(__RESHADE_FXC__)
+		depth = UI_RESHADE_DEPTH_INPUT_IS_REVERSED ? 1.0 - depth : depth;
+#else
 #if RESHADE_DEPTH_INPUT_IS_REVERSED
 		depth = 1.0 - depth;
+#endif
 #endif
 		const float N = 1.0;
 		depth /= RESHADE_DEPTH_LINEARIZATION_FAR_PLANE - depth * (RESHADE_DEPTH_LINEARIZATION_FAR_PLANE - N);
