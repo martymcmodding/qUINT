@@ -9,7 +9,11 @@
 	2.0.1:  added more depth scaling parameters to match ReShade.fxh
 	2.0.2:  added UI for depth linearization when loaded by NVIDIA FreeStyle/Ansel
 			with cue given by effect if depth is required
-
+	2.0.3:  fixed scaling (  "-define" resulted in "--define" if define was negative)
+			split depth buffer retrieval into 2 functions, so that nonlinearized
+			depth can also be taken and a given depth be linearized manually
+	2.0.4:  splitted get_depth function into submodules that correct UV scaling and alignment
+			and a function that samples depth using this corrected UV
 */
 
 /*=============================================================================
@@ -17,7 +21,7 @@
 =============================================================================*/
 
 #ifndef RESHADE_QUINT_COMMON_VERSION
- #define RESHADE_QUINT_COMMON_VERSION 202
+ #define RESHADE_QUINT_COMMON_VERSION 203
 #endif
 
 #if RESHADE_QUINT_COMMON_VERSION_REQUIRE > RESHADE_QUINT_COMMON_VERSION
@@ -118,32 +122,48 @@ namespace qUINT
 	sampler sBackBufferTex 	{ Texture = BackBufferTex; 	};
 	sampler sDepthBufferTex { Texture = DepthBufferTex; };
 
-    // Helper functions
-	float linear_depth(float2 uv)
+	float2 depthtex_uv(float2 uv)
 	{
 #if RESHADE_DEPTH_INPUT_IS_UPSIDE_DOWN
-		uv.y = 1.0 - uv.y;
+        uv.y = 1.0 - uv.y;
 #endif
-		uv *= rcp(float2(RESHADE_DEPTH_INPUT_X_SCALE, RESHADE_DEPTH_INPUT_Y_SCALE));
-		uv += float2(-RESHADE_DEPTH_INPUT_X_OFFSET, RESHADE_DEPTH_INPUT_Y_OFFSET) * 0.5;
+        uv *= rcp(float2(RESHADE_DEPTH_INPUT_X_SCALE, RESHADE_DEPTH_INPUT_Y_SCALE));
+        uv += float2(-(RESHADE_DEPTH_INPUT_X_OFFSET), RESHADE_DEPTH_INPUT_Y_OFFSET) * 0.5;
+        return uv;
+	}
 
-		float depth = tex2Dlod(sDepthBufferTex, float4(uv, 0, 0)).x * RESHADE_DEPTH_MULTIPLIER;
+	float get_depth(float2 uv)
+	{
+        float depth = tex2Dlod(sDepthBufferTex, float4(depthtex_uv(uv), 0, 0)).x;
+        return depth;
+	}
 
+	float linear_depth(float depth)
+	{
+	    depth *= RESHADE_DEPTH_MULTIPLIER;
 #if RESHADE_DEPTH_INPUT_IS_LOGARITHMIC
-		const float C = 0.01;
-		depth = (exp(depth * log(C + 1.0)) - 1.0) / C;
+	    const float C = 0.01;
+	    depth = (exp(depth * log(C + 1.0)) - 1.0) / C;
 #endif
 #if defined(__RESHADE_FXC__)
-		depth = UI_RESHADE_DEPTH_INPUT_IS_REVERSED ? 1.0 - depth : depth;
+	    depth = UI_RESHADE_DEPTH_INPUT_IS_REVERSED ? 1.0 - depth : depth;
 #else
 #if RESHADE_DEPTH_INPUT_IS_REVERSED
-		depth = 1.0 - depth;
+	    depth = 1.0 - depth;
 #endif
 #endif
-		const float N = 1.0;
-		depth /= RESHADE_DEPTH_LINEARIZATION_FAR_PLANE - depth * (RESHADE_DEPTH_LINEARIZATION_FAR_PLANE - N);
+	    const float N = 1.0;
+	    depth /= RESHADE_DEPTH_LINEARIZATION_FAR_PLANE - depth * (RESHADE_DEPTH_LINEARIZATION_FAR_PLANE - N);
 
-		return saturate(depth);
+	    return saturate(depth);
+	}
+
+	//standard linear depth fetch
+	float linear_depth(float2 uv)
+	{
+	    float depth = get_depth(uv);
+	    depth = linear_depth(depth);
+	    return depth;
 	}
 }
 
