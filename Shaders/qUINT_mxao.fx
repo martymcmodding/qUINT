@@ -431,7 +431,10 @@ void PS_AmbientObscurance(in MXAO_VSOUT MXAO, out float4 color : SV_Target0)
         {
                 float3 sample_indirect_lighting = tex2Dlod(sMXAO_ColorTex, float4(sample_uv, 0, sample_mip + MXAO_MIPLEVEL_IL)).xyz;
                 float3 sample_normal = tex2Dlod(sMXAO_NormalTex, float4(sample_uv, 0, sample_mip + MXAO_MIPLEVEL_IL)).xyz * 2.0 - 1.0;
-                sample_indirect_lighting *= saturate(dot(-sample_normal, occlusion_vector) * rsqrt(occlusion_distance_squared) * 4.0) * saturate(1.0 + falloff_factor * occlusion_distance_squared * 0.25);
+                
+                sample_indirect_lighting *= sample_occlusion;
+                sample_indirect_lighting *= 0.5 + 0.5*saturate(dot(sample_normal, -occlusion_vector * occlusion_distance_squared));
+
                 color += float4(sample_indirect_lighting, sample_occlusion);
         }
 #else
@@ -441,6 +444,7 @@ void PS_AmbientObscurance(in MXAO_VSOUT MXAO, out float4 color : SV_Target0)
 
     color = saturate(color / ((1.0 - MXAO_SAMPLE_NORMAL_BIAS) * MXAO.samples) * 2.0);
     color = color.BLUR_COMP_SWIZZLE;
+    color = sqrt(color);
 
 #if(MXAO_TWO_LAYER != 0)
     color *= lerp(MXAO_AMOUNT_COARSE, MXAO_AMOUNT_FINE, layer_id); 
@@ -539,7 +543,7 @@ void PS_SpatialFilter1(in MXAO_VSOUT MXAO, out float4 color : SV_Target0)
 void PS_SpatialFilter2(MXAO_VSOUT MXAO, out float4 color : SV_Target0)
 {
     float4 ssil_ssao = blur_filter(MXAO, sCommonTex1, 1, 1.0 / MXAO_GLOBAL_RENDER_SCALE, 8);
-
+    ssil_ssao *= ssil_ssao;
 	color = tex2D(sMXAO_ColorTex, MXAO.uv.xy);
 
     static const float3 lumcoeff = float3(0.2126, 0.7152, 0.0722);
@@ -553,7 +557,6 @@ void PS_SpatialFilter2(MXAO_VSOUT MXAO, out float4 color : SV_Target0)
     ssil_ssao.xyz = 0.0;
 #endif
 
-	ssil_ssao = saturate(ssil_ssao); //compiler..
 #if(MXAO_HQ == 0)
 	ssil_ssao.w  = 1.0 - pow(1.0 - ssil_ssao.w, MXAO_SSAO_AMOUNT * 2.0);
 #else
