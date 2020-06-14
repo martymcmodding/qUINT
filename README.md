@@ -44,4 +44,6 @@ To prohibit focused areas from bleeding their color into blurred areas - a commo
 * `Screen-Space Reflections` adds reflections to the scene, using the data that is already available in the image. This is the spiritual successor of the "Reflective Bumpmapping" (RBM) in older ReShade shaders. It creates much more accurate reflections while not being quite as hard on performance. 
 As a Screen-Space technique, it suffers like all similar implementation from the fact that nothing outside the screen can be reflected. It also cannot distinguish between reflective and non-reflective surfaces, so it will just cover everything with a reflection layer. This restricts its usability to screenshots and certain games but where it is useful, it can completely transform the look of the scene.
 
+* `Depth-enhanced Local Contrast Sharpen` is a new sharpening shader, which attempts to sharpen texture detail only while avoiding common sharpen artifacts such as halos around strong edges, excessive aliasing and flickering. It uses the depth buffer to enhance the detail and mask areas that would otherwise produce oversharpening.
+
 ### Copyright (c) Pascal Gilcher / Marty McFly. All rights reserved.
