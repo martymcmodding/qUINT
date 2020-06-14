@@ -338,7 +338,7 @@ void PS_Combine(in float4 pos : SV_Position, in float2 uv : TEXCOORD0, out float
 
 	color.rgb += bloom.rgb;
 	color.rgb *= lerp(1, rcp(adapt), BLOOM_ADAPT_STRENGTH); 
-	color.rgb = ldexp(color.rgb, BLOOM_ADAPT_EXPOSURE);
+	color.rgb *= exp2(BLOOM_ADAPT_EXPOSURE);
 
 	color.rgb = pow(max(0,color.rgb), BLOOM_TONEMAP_COMPRESSION);
 	color.rgb = color.rgb / (1.0 + color.rgb);
