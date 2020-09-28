@@ -768,8 +768,8 @@ void PS_HistogramGenerate(float4 vpos : SV_Position, float2 uv : TEXCOORD, out f
 void PS_ProcessLUT(float4 vpos : SV_Position, float2 uv : TEXCOORD0, nointerpolation float huefactors[7] : TEXCOORD1, out float4 color : SV_Target0)
 {
 	//ReShade bug :( can't initialize structs the old fashioned/C way
-	static CurvesStruct Curves = setup_curves();
-	static PaletteStruct Palette = setup_palette();
+	const CurvesStruct Curves = setup_curves();
+	const PaletteStruct Palette = setup_palette();
 
 	draw_lut_4096x64(color.rgb, vpos.xy);
 
@@ -801,8 +801,8 @@ void PS_ApplyLUT(float4 vpos : SV_Position, float2 uv : TEXCOORD0, nointerpolati
 
 void PS_DisplayStatistics(float4 vpos : SV_Position, float2 uv : TEXCOORD0, nointerpolation float huefactors[7] : TEXCOORD1, out float4 res : SV_Target0)
 {
-	static CurvesStruct Curves = setup_curves();
-	static VignetteStruct Vignette = setup_vignette();
+	const CurvesStruct Curves = setup_curves();
+	const VignetteStruct Vignette = setup_vignette();
 
 	float4 color = tex2D(qUINT::sBackBufferTex,uv);
 	if(LIGHTROOM_ENABLE_VIGNETTE) color.rgb = get_vignette(color.rgb, uv, Vignette);
