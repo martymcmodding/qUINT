@@ -396,7 +396,7 @@ void PS_ReadFocus(in ADOF_VSOUT IN, out float focus : SV_Target0)
 	}
 	else
 	{
-		scenefocus = fADOF_ManualfocusDepth;
+		scenefocus = fADOF_ManualfocusDepth * fADOF_ManualfocusDepth;
 	}
 
     float prevscenefocus = tex2D(sADOF_FocusTexPrev, 0.5).x;
