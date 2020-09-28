@@ -14,6 +14,8 @@
 			depth can also be taken and a given depth be linearized manually
 	2.0.4:  splitted get_depth function into submodules that correct UV scaling and alignment
 			and a function that samples depth using this corrected UV
+	2.0.5:  renamed linear_depth(depth) to linearize_depth(depth). Polymorphism is cool, but unintuitive.
+			Perfect time to do this change now as no filter uses that function in this way yet.
 */
 
 /*=============================================================================
@@ -138,7 +140,7 @@ namespace qUINT
         return depth;
 	}
 
-	float linear_depth(float depth)
+	float linearize_depth(float depth)
 	{
 	    depth *= RESHADE_DEPTH_MULTIPLIER;
 #if RESHADE_DEPTH_INPUT_IS_LOGARITHMIC
@@ -162,7 +164,7 @@ namespace qUINT
 	float linear_depth(float2 uv)
 	{
 	    float depth = get_depth(uv);
-	    depth = linear_depth(depth);
+	    depth = linearize_depth(depth);
 	    return depth;
 	}
 }
