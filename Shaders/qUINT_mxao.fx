@@ -39,8 +39,8 @@
  #define MXAO_TWO_LAYER         0   //[0 or 1]      Splits MXAO into two separate layers that allow for both large and fine AO.
 #endif
 
-#ifndef MXAO_HQ
- #define MXAO_HQ                0   //[0 or 1]      Enables a different, more physically accurate but slower SSAO mode. Based on Ground Truth Ambient Occlusion by Activision. No IL yet.
+#ifndef MXAO_HIGH_QUALITY
+ #define MXAO_HIGH_QUALITY      0   //[0 or 1]      Enables a different, more physically accurate but slower SSAO mode. Based on Ground Truth Ambient Occlusion by Activision. No IL yet.
 #endif
 
 /*=============================================================================
@@ -63,7 +63,7 @@ uniform float MXAO_SAMPLE_RADIUS <
     ui_category = "Global";      
 > = 2.5;
 
-#if (MXAO_HQ==0)
+#if (MXAO_HIGH_QUALITY==0)
     uniform float MXAO_SAMPLE_NORMAL_BIAS <
         ui_type = "drag";
         ui_min = 0.0; ui_max = 0.8;
@@ -454,7 +454,7 @@ void PS_AmbientObscurance(in MXAO_VSOUT MXAO, out float4 color : SV_Target0)
 void PS_AmbientObscuranceHQ(in MXAO_VSOUT MXAO, out float4 color : SV_Target0)
 {
 	float3 position = get_position_from_uv_mipmapped(MXAO.uv.zw, MXAO, 0);
-	float3 normal 	= tex2D(sMXAO_NormalTex, MXAO.uv.zw).xyz * 2.0 - 1.0;	
+	float3 normal 	= normalize(tex2D(sMXAO_NormalTex, MXAO.uv.zw).xyz * 2.0 - 1.0); //fixes black lines	
 
 #if(MXAO_SMOOTHNORMALS != 0)
     smooth_normals(normal, position, MXAO);
@@ -487,6 +487,9 @@ void PS_AmbientObscuranceHQ(in MXAO_VSOUT MXAO, out float4 color : SV_Target0)
 		float3 sliceDir = float3(sample_direction, 0);
 		float2 h = -1.0;
 
+#if(MXAO_ENABLE_IL != 0)
+		float3 il[2];il[0] = 0;il[1] = 0;
+#endif
 		[loop]
 		for(int j = 0; j < stepshalf; j++)
 		{
@@ -504,10 +507,37 @@ void PS_AmbientObscuranceHQ(in MXAO_VSOUT MXAO, out float4 color : SV_Target0)
 
 			float2 sample_h = float2(dot(occlusion_vector[0], viewdir), 
 								     dot(occlusion_vector[1], viewdir)) * inv_distance;
-            
-            sample_h = lerp(sample_h, h, saturate( occlusion_distance_squared * falloff_factor));
 
-			h.xy = (sample_h > h) ? sample_h : lerp(sample_h, h, 0.75);	       
+			float2 falloff = saturate(occlusion_distance_squared * falloff_factor);
+			sample_h = lerp(sample_h, h, falloff);
+
+#if(MXAO_ENABLE_IL != 0)
+			float3 sample_il[2], sample_normal[2]; sample_il[0] = 0; sample_il[1] = 0;
+
+			[branch]
+			if(falloff.x < 0.8)
+			{
+				sample_il[0] = tex2Dlod(sMXAO_ColorTex, float4(sample_uv.xy, 0, sample_mip + MXAO_MIPLEVEL_IL)).xyz;
+				sample_normal[0] = tex2Dlod(sMXAO_NormalTex, float4(sample_uv.xy, 0, sample_mip + MXAO_MIPLEVEL_IL)).xyz * 2.0 - 1.0;
+				sample_il[0] *= saturate(-inv_distance.x * dot(occlusion_vector[0], sample_normal[0]));
+				sample_il[0] = lerp(sample_il[0], il[0], saturate( occlusion_distance_squared.x * falloff_factor));
+			}
+			[branch]
+			if(falloff.y < 0.8)
+			{
+	            sample_il[1] = tex2Dlod(sMXAO_ColorTex, float4(sample_uv.zw, 0, sample_mip + MXAO_MIPLEVEL_IL)).xyz;
+	            sample_normal[1] = tex2Dlod(sMXAO_NormalTex, float4(sample_uv.zw, 0, sample_mip + MXAO_MIPLEVEL_IL)).xyz * 2.0 - 1.0;       
+	            sample_il[1] *= saturate(-inv_distance.y * dot(occlusion_vector[1], sample_normal[1]));
+	            sample_il[1] = lerp(sample_il[1], il[1], saturate( occlusion_distance_squared.y * falloff_factor));
+			}
+#endif
+
+			h.xy = (sample_h > h) ? sample_h : lerp(sample_h, h, 0.75);	
+
+#if(MXAO_ENABLE_IL != 0)
+            il[0] = (sample_h.x > h.x) ? sample_il[0] : lerp(sample_il[0], il[0], 0.75);	 
+            il[1] = (sample_h.y > h.y) ? sample_il[1] : lerp(sample_il[1], il[1], 0.75);
+#endif
 			start += sample_direction;
 		}
 
@@ -528,11 +558,16 @@ void PS_AmbientObscuranceHQ(in MXAO_VSOUT MXAO, out float4 color : SV_Target0)
 
 		float2 sample_occlusion = cos_gamma + h * sin(gamma) - cos(h - gamma);
 		color.w += proj_length * dot(sample_occlusion, 0.25); 
+#if(MXAO_ENABLE_IL != 0)
+		color.rgb += proj_length * sample_occlusion.x * 0.25 * il[0];
+		color.rgb += proj_length * sample_occlusion.y * 0.25 * il[1];
+#endif
 	}
 
     color /= directions;
     color.w = 1 - color.w;
 	color = color.BLUR_COMP_SWIZZLE;
+	color = sqrt(color);
 }
 
 void PS_SpatialFilter1(in MXAO_VSOUT MXAO, out float4 color : SV_Target0)
@@ -557,7 +592,7 @@ void PS_SpatialFilter2(MXAO_VSOUT MXAO, out float4 color : SV_Target0)
     ssil_ssao.xyz = 0.0;
 #endif
 
-#if(MXAO_HQ == 0)
+#if(MXAO_HIGH_QUALITY == 0)
 	ssil_ssao.w  = 1.0 - pow(1.0 - ssil_ssao.w, MXAO_SSAO_AMOUNT * 2.0);
 #else
     ssil_ssao.w  = 1.0 - pow(1.0 - ssil_ssao.w, MXAO_SSAO_AMOUNT);
@@ -631,7 +666,7 @@ technique MXAO
 		StencilPass = REPLACE;
         StencilRef = 1;
     }
-#if(MXAO_HQ != 0)
+#if(MXAO_HIGH_QUALITY != 0)
     pass
     {
         VertexShader = VS_MXAO;
