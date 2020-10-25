@@ -16,6 +16,7 @@
 			and a function that samples depth using this corrected UV
 	2.0.5:  renamed linear_depth(depth) to linearize_depth(depth). Polymorphism is cool, but unintuitive.
 			Perfect time to do this change now as no filter uses that function in this way yet.
+	2.0.6:  added new pixel offsets to depth buffer and reorganized the existing defines
 */
 
 /*=============================================================================
@@ -23,7 +24,7 @@
 =============================================================================*/
 
 #ifndef RESHADE_QUINT_COMMON_VERSION
- #define RESHADE_QUINT_COMMON_VERSION 203
+ #define RESHADE_QUINT_COMMON_VERSION 206
 #endif
 
 #if RESHADE_QUINT_COMMON_VERSION_REQUIRE > RESHADE_QUINT_COMMON_VERSION
@@ -62,19 +63,27 @@
 #ifndef RESHADE_DEPTH_MULTIPLIER
 	#define RESHADE_DEPTH_MULTIPLIER 1	//mcfly: probably not a good idea, many shaders depend on having depth range 0-1
 #endif
+#ifndef RESHADE_DEPTH_INPUT_X_SCALE
+	#define RESHADE_DEPTH_INPUT_X_SCALE 1
+#endif
 #ifndef RESHADE_DEPTH_INPUT_Y_SCALE
 	#define RESHADE_DEPTH_INPUT_Y_SCALE 1
 #endif
-#ifndef RESHADE_DEPTH_INPUT_X_SCALE
-	#define RESHADE_DEPTH_INPUT_X_SCALE 1
+// An offset to add to the X coordinate, (+) = move right, (-) = move left
+#ifndef RESHADE_DEPTH_INPUT_X_OFFSET
+	#define RESHADE_DEPTH_INPUT_X_OFFSET 0
 #endif
 // An offset to add to the Y coordinate, (+) = move up, (-) = move down
 #ifndef RESHADE_DEPTH_INPUT_Y_OFFSET
 	#define RESHADE_DEPTH_INPUT_Y_OFFSET 0
 #endif
 // An offset to add to the X coordinate, (+) = move right, (-) = move left
-#ifndef RESHADE_DEPTH_INPUT_X_OFFSET
-	#define RESHADE_DEPTH_INPUT_X_OFFSET 0
+#ifndef RESHADE_DEPTH_INPUT_X_PIXEL_OFFSET
+	#define RESHADE_DEPTH_INPUT_X_PIXEL_OFFSET 0
+#endif
+// An offset to add to the Y coordinate, (+) = move up, (-) = move down
+#ifndef RESHADE_DEPTH_INPUT_Y_PIXEL_OFFSET
+	#define RESHADE_DEPTH_INPUT_Y_PIXEL_OFFSET 0
 #endif
 
 /*=============================================================================
@@ -129,8 +138,18 @@ namespace qUINT
 #if RESHADE_DEPTH_INPUT_IS_UPSIDE_DOWN
         uv.y = 1.0 - uv.y;
 #endif
-        uv *= rcp(float2(RESHADE_DEPTH_INPUT_X_SCALE, RESHADE_DEPTH_INPUT_Y_SCALE));
-        uv += float2(-(RESHADE_DEPTH_INPUT_X_OFFSET), RESHADE_DEPTH_INPUT_Y_OFFSET) * 0.5;
+        uv.x /= RESHADE_DEPTH_INPUT_X_SCALE;
+		uv.y /= RESHADE_DEPTH_INPUT_Y_SCALE;
+#if RESHADE_DEPTH_INPUT_X_PIXEL_OFFSET
+		uv.x -= RESHADE_DEPTH_INPUT_X_PIXEL_OFFSET * BUFFER_RCP_WIDTH;
+#else // Do not check RESHADE_DEPTH_INPUT_X_OFFSET, since it may be a decimal number, which the preprocessor cannot handle
+		uv.x -= RESHADE_DEPTH_INPUT_X_OFFSET / 2.000000001;
+#endif
+#if RESHADE_DEPTH_INPUT_Y_PIXEL_OFFSET
+		uv.y += RESHADE_DEPTH_INPUT_Y_PIXEL_OFFSET * BUFFER_RCP_HEIGHT;
+#else
+		uv.y += RESHADE_DEPTH_INPUT_Y_OFFSET / 2.000000001;
+#endif
         return uv;
 	}
 
