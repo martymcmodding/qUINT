@@ -330,10 +330,10 @@ void smooth_normals(inout float3 normal, in float3 position, in MXAO_VSOUT MXAO)
         for(int direction_step = 1; direction_step <= 5; direction_step++)
         {
             float search_radius = exp2(direction_step);
-            float2 sample_uv = MXAO.uv.zw + direction * search_radius * scaled_radius;
+            float2 tap_uv = MXAO.uv.zw + direction * search_radius * scaled_radius;
 
-            float3 temp_normal = tex2Dlod(sMXAO_NormalTex, float4(sample_uv, 0, 0)).xyz * 2.0 - 1.0;
-            float3 temp_position = get_position_from_uv_mipmapped(sample_uv, MXAO, 0);
+            float3 temp_normal = tex2Dlod(sMXAO_NormalTex, float4(tap_uv, 0, 0)).xyz * 2.0 - 1.0;
+            float3 temp_position = get_position_from_uv_mipmapped(tap_uv, MXAO, 0);
 
             float3 position_delta = temp_position - position;
             float distance_weight = saturate(1.0 - dot(position_delta, position_delta) * 20.0 / search_radius);
@@ -406,39 +406,39 @@ void PS_AmbientObscurance(in MXAO_VSOUT MXAO, out float4 color : SV_Target0)
     float falloff_factor;
     sample_parameter_setup(MXAO, position.z, layer_id, scaled_radius, falloff_factor);
 
-    float2 sample_uv, sample_direction;
-    sincos(2.3999632 * 16 * sample_jitter, sample_direction.x, sample_direction.y); //2.3999632 * 16
-    sample_direction *= scaled_radius;   
+    float2 tap_uv, sample_dir;
+    sincos(2.3999632 * 16 * sample_jitter, sample_dir.x, sample_dir.y); //2.3999632 * 16
+    sample_dir *= scaled_radius;   
 
     color = 0.0;
 
     [loop]
     for(int i = 0; i < MXAO.samples; i++)
     {                    
-        sample_uv = MXAO.uv.zw + sample_direction.xy * qUINT::ASPECT_RATIO * (i + sample_jitter);   
-        sample_direction.xy = mul(sample_direction.xy, float2x2(0.76465, -0.64444, 0.64444, 0.76465)); //cos/sin 2.3999632 * 16            
+        tap_uv = MXAO.uv.zw + sample_dir.xy * qUINT::ASPECT_RATIO * (i + sample_jitter);   
+        sample_dir.xy = mul(sample_dir.xy, float2x2(0.76465, -0.64444, 0.64444, 0.76465)); //cos/sin 2.3999632 * 16            
 
         float sample_mip = saturate(scaled_radius * i * 20.0) * 3.0;
            
-    	float3 occlusion_vector = -position + get_position_from_uv_mipmapped(sample_uv, MXAO, sample_mip + MXAO_MIPLEVEL_AO);                
-        float  occlusion_distance_squared = dot(occlusion_vector, occlusion_vector);
-        float  occlusion_normal_angle = dot(occlusion_vector, normal) * rsqrt(occlusion_distance_squared);
+    	float3 delta_v = -position + get_position_from_uv_mipmapped(tap_uv, MXAO, sample_mip + MXAO_MIPLEVEL_AO);                
+        float v2 = dot(delta_v, delta_v);
+        float vn = dot(delta_v, normal) * rsqrt(v2);
 
-        float sample_occlusion = saturate(1.0 + falloff_factor * occlusion_distance_squared) * saturate(occlusion_normal_angle - MXAO_SAMPLE_NORMAL_BIAS);
+        float sample_ao = saturate(1.0 + falloff_factor * v2) * saturate(vn - MXAO_SAMPLE_NORMAL_BIAS);
 #if(MXAO_ENABLE_IL != 0)
         [branch]
-        if(sample_occlusion > 0.1)
+        if(sample_ao > 0.1)
         {
-                float3 sample_indirect_lighting = tex2Dlod(sMXAO_ColorTex, float4(sample_uv, 0, sample_mip + MXAO_MIPLEVEL_IL)).xyz;
-                float3 sample_normal = tex2Dlod(sMXAO_NormalTex, float4(sample_uv, 0, sample_mip + MXAO_MIPLEVEL_IL)).xyz * 2.0 - 1.0;
+                float3 sample_il = tex2Dlod(sMXAO_ColorTex, float4(tap_uv, 0, sample_mip + MXAO_MIPLEVEL_IL)).xyz;
+                float3 sample_normal = tex2Dlod(sMXAO_NormalTex, float4(tap_uv, 0, sample_mip + MXAO_MIPLEVEL_IL)).xyz * 2.0 - 1.0;
                 
-                sample_indirect_lighting *= sample_occlusion;
-                sample_indirect_lighting *= 0.5 + 0.5*saturate(dot(sample_normal, -occlusion_vector * occlusion_distance_squared));
+                sample_il *= sample_ao;
+                sample_il *= 0.5 + 0.5*saturate(dot(sample_normal, -delta_v * v2));
 
-                color += float4(sample_indirect_lighting, sample_occlusion);
+                color += float4(sample_il, sample_ao);
         }
 #else
-        color.w += sample_occlusion;
+        color.w += sample_ao;
 #endif
     }
 
@@ -472,7 +472,7 @@ void PS_AmbientObscuranceHQ(in MXAO_VSOUT MXAO, out float4 color : SV_Target0)
 	float sample_jitter = dot(floor(MXAO.vpos.xy % 4 + 0.1), float2(0.0625, 0.25)) + 0.0625;
 
 	float dir_phi = 3.14159265 / directions;
-	float2 sample_direction; sincos(dir_phi * sample_jitter * 6, sample_direction.y, sample_direction.x);
+	float2 sample_dir; sincos(dir_phi * sample_jitter * 6, sample_dir.y, sample_dir.x);
 	float2x2 rot_dir = float2x2(cos(dir_phi),-sin(dir_phi),
                                 sin(dir_phi),cos(dir_phi));
 
@@ -481,10 +481,10 @@ void PS_AmbientObscuranceHQ(in MXAO_VSOUT MXAO, out float4 color : SV_Target0)
 	[loop]
 	for(float i = 0; i < directions; i++)
 	{
-		sample_direction = mul(sample_direction, rot_dir);
-		float2 start = sample_direction * sample_jitter;
+		sample_dir = mul(sample_dir, rot_dir);
+		float2 start = sample_dir * sample_jitter;
 
-		float3 sliceDir = float3(sample_direction, 0);
+		float3 sliceDir = float3(sample_dir, 0);
 		float2 h = -1.0;
 
 #if(MXAO_ENABLE_IL != 0)
@@ -493,22 +493,22 @@ void PS_AmbientObscuranceHQ(in MXAO_VSOUT MXAO, out float4 color : SV_Target0)
 		[loop]
 		for(int j = 0; j < stepshalf; j++)
 		{
-			float4 sample_uv = MXAO.uv.zwzw + scaled_radius * qUINT::PIXEL_SIZE.xyxy * start.xyxy * float4(1,1,-1,-1);
+			float4 tap_uv = MXAO.uv.zwzw + scaled_radius * qUINT::PIXEL_SIZE.xyxy * start.xyxy * float4(1,1,-1,-1);
 			float sample_mip = saturate(scaled_radius * j * 0.01) * 3.0;
 
-			float3 occlusion_vector[2];
-			occlusion_vector[0] = -position + get_position_from_uv_mipmapped(sample_uv.xy, MXAO, sample_mip + MXAO_MIPLEVEL_AO);  
-			occlusion_vector[1] = -position + get_position_from_uv_mipmapped(sample_uv.zw, MXAO, sample_mip + MXAO_MIPLEVEL_AO); 
+			float3 delta_v[2];
+			delta_v[0] = -position + get_position_from_uv_mipmapped(tap_uv.xy, MXAO, sample_mip + MXAO_MIPLEVEL_AO);  
+			delta_v[1] = -position + get_position_from_uv_mipmapped(tap_uv.zw, MXAO, sample_mip + MXAO_MIPLEVEL_AO); 
 
-			float2  occlusion_distance_squared = float2(dot(occlusion_vector[0], occlusion_vector[0]), 
-														dot(occlusion_vector[1], occlusion_vector[1]));
+			float2  v2 = float2(dot(delta_v[0], delta_v[0]), 
+														dot(delta_v[1], delta_v[1]));
 
-            float2 inv_distance = rsqrt(occlusion_distance_squared);
+            float2 inv_distance = rsqrt(v2);
 
-			float2 sample_h = float2(dot(occlusion_vector[0], viewdir), 
-								     dot(occlusion_vector[1], viewdir)) * inv_distance;
+			float2 sample_h = float2(dot(delta_v[0], viewdir), 
+								     dot(delta_v[1], viewdir)) * inv_distance;
 
-			float2 falloff = saturate(occlusion_distance_squared * falloff_factor);
+			float2 falloff = saturate(v2 * falloff_factor);
 			sample_h = lerp(sample_h, h, falloff);
 
 #if(MXAO_ENABLE_IL != 0)
@@ -517,18 +517,18 @@ void PS_AmbientObscuranceHQ(in MXAO_VSOUT MXAO, out float4 color : SV_Target0)
 			[branch]
 			if(falloff.x < 0.8)
 			{
-				sample_il[0] = tex2Dlod(sMXAO_ColorTex, float4(sample_uv.xy, 0, sample_mip + MXAO_MIPLEVEL_IL)).xyz;
-				sample_normal[0] = tex2Dlod(sMXAO_NormalTex, float4(sample_uv.xy, 0, sample_mip + MXAO_MIPLEVEL_IL)).xyz * 2.0 - 1.0;
-				sample_il[0] *= saturate(-inv_distance.x * dot(occlusion_vector[0], sample_normal[0]));
-				sample_il[0] = lerp(sample_il[0], il[0], saturate( occlusion_distance_squared.x * falloff_factor));
+				sample_il[0] = tex2Dlod(sMXAO_ColorTex, float4(tap_uv.xy, 0, sample_mip + MXAO_MIPLEVEL_IL)).xyz;
+				sample_normal[0] = tex2Dlod(sMXAO_NormalTex, float4(tap_uv.xy, 0, sample_mip + MXAO_MIPLEVEL_IL)).xyz * 2.0 - 1.0;
+				sample_il[0] *= saturate(-inv_distance.x * dot(delta_v[0], sample_normal[0]));
+				sample_il[0] = lerp(sample_il[0], il[0], saturate( v2.x * falloff_factor));
 			}
 			[branch]
 			if(falloff.y < 0.8)
 			{
-	            sample_il[1] = tex2Dlod(sMXAO_ColorTex, float4(sample_uv.zw, 0, sample_mip + MXAO_MIPLEVEL_IL)).xyz;
-	            sample_normal[1] = tex2Dlod(sMXAO_NormalTex, float4(sample_uv.zw, 0, sample_mip + MXAO_MIPLEVEL_IL)).xyz * 2.0 - 1.0;       
-	            sample_il[1] *= saturate(-inv_distance.y * dot(occlusion_vector[1], sample_normal[1]));
-	            sample_il[1] = lerp(sample_il[1], il[1], saturate( occlusion_distance_squared.y * falloff_factor));
+	            sample_il[1] = tex2Dlod(sMXAO_ColorTex, float4(tap_uv.zw, 0, sample_mip + MXAO_MIPLEVEL_IL)).xyz;
+	            sample_normal[1] = tex2Dlod(sMXAO_NormalTex, float4(tap_uv.zw, 0, sample_mip + MXAO_MIPLEVEL_IL)).xyz * 2.0 - 1.0;       
+	            sample_il[1] *= saturate(-inv_distance.y * dot(delta_v[1], sample_normal[1]));
+	            sample_il[1] = lerp(sample_il[1], il[1], saturate( v2.y * falloff_factor));
 			}
 #endif
 
@@ -538,7 +538,7 @@ void PS_AmbientObscuranceHQ(in MXAO_VSOUT MXAO, out float4 color : SV_Target0)
             il[0] = (sample_h.x > h.x) ? sample_il[0] : lerp(sample_il[0], il[0], 0.75);	 
             il[1] = (sample_h.y > h.y) ? sample_il[1] : lerp(sample_il[1], il[1], 0.75);
 #endif
-			start += sample_direction;
+			start += sample_dir;
 		}
 
 		float3 normal_slice_plane = normalize(cross(sliceDir, viewdir));
@@ -556,11 +556,11 @@ void PS_AmbientObscuranceHQ(in MXAO_VSOUT MXAO, out float4 color : SV_Target0)
 
         h *= 2;		
 
-		float2 sample_occlusion = cos_gamma + h * sin(gamma) - cos(h - gamma);
-		color.w += proj_length * dot(sample_occlusion, 0.25); 
+		float2 sample_ao = cos_gamma + h * sin(gamma) - cos(h - gamma);
+		color.w += proj_length * dot(sample_ao, 0.25); 
 #if(MXAO_ENABLE_IL != 0)
-		color.rgb += proj_length * sample_occlusion.x * 0.25 * il[0];
-		color.rgb += proj_length * sample_occlusion.y * 0.25 * il[1];
+		color.rgb += proj_length * sample_ao.x * 0.25 * il[0];
+		color.rgb += proj_length * sample_ao.y * 0.25 * il[1];
 #endif
 	}
 
