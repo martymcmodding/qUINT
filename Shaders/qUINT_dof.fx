@@ -322,11 +322,11 @@ float CircleOfConfusion(float2 texcoord, bool aggressiveLeakReduction)
 	if(depthdata.x < depthdata.y)
 	{
 		scenecoc = depthdata.x / depthdata.y - 1.0;
-		scenecoc = ldexp(scenecoc, -0.5*fADOF_NearBlurCurve*fADOF_NearBlurCurve);
+		scenecoc *= exp2(-0.5*fADOF_NearBlurCurve*fADOF_NearBlurCurve);
 	}
 	else
 	{
-		scenecoc = (depthdata.x - depthdata.y)/(ldexp(depthdata.y, fADOF_FarBlurCurve*fADOF_FarBlurCurve) - depthdata.y);
+		scenecoc = (depthdata.x - depthdata.y)/((depthdata.y * exp2(fADOF_FarBlurCurve*fADOF_FarBlurCurve)) - depthdata.y);
 	        scenecoc = saturate(scenecoc);
 	}
 
