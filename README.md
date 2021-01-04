@@ -32,7 +32,7 @@ Setup
 Contents
 ------------------------
 
-* `MXAO` is a Screen-Space Ambient Occlusion algorithm that can serve as a replacement for existing SSAO implementations in video games or to polish dated games that lack such a feature. Algorithmically similar to latest-gen tech like ASSAO and HBAO+, although it features some relatively unique features such as indirect illumination, smoothing filter for depth-derived normal maps, double-layer option at no additional cost and others. Highly configurable, easily tweakable.
+* `MXAO` is a Screen-Space Ambient Occlusion algorithm that can serve as a replacement for existing SSAO implementations in video games or to polish dated games that lack such a feature. Algorithmically similar to latest-gen tech like GTAO and CACAO, although it features some relatively unique features such as indirect illumination, smoothing filter for depth-derived normal maps, double-layer option at no additional cost and others. Highly configurable, easily tweakable.
 
 * `ADOF` This is a Depth of Field shader that aspires to give movie-quality bokeh blur to video games. It provides a very high quality DoF effect with artistic controls, ideal for both screenshots and gameplay. The bokeh discs it produces can be polygonal, circular and anything in between, it also features a disc occlusion feature (where the bokeh discs look like boolean intersection between 2 circles) and chromatic aberration at bokeh shape edges. This is done by a unique gradient-based algorithm that has a very low constant cost ignorant of scene complexity or blur settings. 
 To prohibit focused areas from bleeding their color into blurred areas - a common visual error found in many DoF filters - the shader employs a highly sophisticated solution that is capable of migitating this artifact completely without the overhead of common solutions that also mostly underperform.
@@ -44,6 +44,9 @@ To prohibit focused areas from bleeding their color into blurred areas - a commo
 * `Screen-Space Reflections` adds reflections to the scene, using the data that is already available in the image. This is the spiritual successor of the "Reflective Bumpmapping" (RBM) in older ReShade shaders. It creates much more accurate reflections while not being quite as hard on performance. 
 As a Screen-Space technique, it suffers like all similar implementation from the fact that nothing outside the screen can be reflected. It also cannot distinguish between reflective and non-reflective surfaces, so it will just cover everything with a reflection layer. This restricts its usability to screenshots and certain games but where it is useful, it can completely transform the look of the scene.
 
-* `Depth-enhanced Local Contrast Sharpen` is a new sharpening shader, which attempts to sharpen texture detail only while avoiding common sharpen artifacts such as halos around strong edges, excessive aliasing and flickering. It uses the depth buffer to enhance the detail and mask areas that would otherwise produce oversharpening.
+* `Depth-Enhanced Local Contrast Sharpen` is a new sharpening shader, which attempts to sharpen texture detail only while avoiding common sharpen artifacts such as halos around strong edges, excessive aliasing and flickering. It uses the depth buffer to enhance the detail and mask areas that would otherwise produce oversharpening.
+
+* `Debanding` is a very simple and intuitive, drop-in solution to rid the image of color banding and quantization artifacts. Fixes blocky color gradients and breaks up crushed texture detail.
+
 
 ### Copyright (c) Pascal Gilcher / Marty McFly. All rights reserved.
