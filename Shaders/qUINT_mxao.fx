@@ -1,7 +1,9 @@
 /*=============================================================================
 
 	ReShade 4 effect file
-    github.com/martymcmodding     
+    github.com/martymcmodding 
+
+    Copyright (c) Pascal Gilcher. All rights reserved.    
 
 	Support me:
    		paypal.me/mcflypg
@@ -9,10 +11,9 @@
 
     Ambient Obscurance with Indirect Lighting "MXAO"
 
-    BETA VERSION, FEATURESET SUBJECT TO CHANGE!
+    changelog:
 
-    by Marty McFly / P.Gilcher
-        part of qUINT shader library for ReShade 4
+    0.1:    - initial release
 
     * Unauthorized copying of this file, via any medium is strictly prohibited
  	* Proprietary and confidential
