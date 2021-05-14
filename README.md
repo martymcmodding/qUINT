@@ -1,53 +1,37 @@
 qUINT
 ========================================================
 
-qUINT is a shader framework for ReShade 4, written in its proprietary ReShade FX language. It aims to deliver effects to cover most of ReShade's common use cases in a small and easy package. Notable properties:
+qUINT is a shader collection for ReShade, written in ReShade's proprietary shader language, ReShade FX. It aims to condense most of ReShade's use cases into a small set of shaders, to improve performance, ease of use and accelerate preset prototyping. Many extended features can be enabled via preprocessor definitions in each of the shaders, so make sure to check them out. 
 
-* Next-gen effects abstracted behind intuitive controls
-* Highly polished code for best quality and performance, taking care of many artifacts similar implementations suffer from
-* Full use of ReShade FX so it can serve as a reference implementation of everything RSFX has to offer
-* Fully compatible to the official ReShade shader repository
-* Modular setup for faster compile times if only a part of qUINT is required
+Even though qUINT effects do not use the [ReShade.fxh](https://github.com/crosire/reshade-shaders/blob/slim/Shaders/ReShade.fxh) header - unlike most ReShade effects - all common preprocessor definitions, e.g. regarding depth buffer linearization, are supported. The reasons behind this decision are licensing concerns, clashes of naming conventions and ensuring that qUINT is not broken by changes to the common header.
 
-Prerequisites
+Requirements
 ------------------------
 
-- Latest ReShade version to ensure maximum compatibility
-- Completed ReShade tutorial
+- Latest ReShade version to ensure best compatibility
+- Some effects require depth access
 
 Setup
 ------------------------
 
-Currently, qUINT is among the repositories listed in the ReShade installer, so it can be installed and registered during ReShade installation directly. The following guide still applies when a non-standard way of installing ReShade was chosen.
+qUINT is among the repositories listed in the ReShade installer, so it can be installed and registered during ReShade installation directly. The following guide still applies when a non-standard way of installing ReShade was chosen.
 
-- `Optional` if you don't use the default ReShade shader package or put them to a different location, add `.\Shaders` to the EffectSearchPaths of the ReShade .ini file (same name as the ReShade dll, d3d9.ini - d3d11.ini, dxgi.ini, opengl32.ini are possible names) and create the respective folder.
-
-- Put the content of the qUINT `Shaders` folder into the `Shaders` folder present in your ReShade installation location. The file and folder structure should look like this:
-
-	- [file] ReShade DLL (d3d9.dll/d3d10.dll/d3d11.dll/dxgi.dll/opengl32.dll)
-	- [file] ReShade INI (d3d9.ini/d3d10.ini/d3d11.ini/dxgi.ini/opengl32.ini)
-	- [folder] Shaders 
-		- [file] qUINT files
-
-- Open the `Shaders` folder you just put the files in and delete any `.fx` (not `.fxh`!) file you don't need, so in case you don't require the bloom shader, delete `qUINT_bloom.fx`.
+Assuming that you knew what you were doing if you chose a non-standard way of installing ReShade, just merge the `Shaders` and `Textures` folders of qUINT with the ones in any currently installed ReShade shader library.
 
 Contents
 ------------------------
 
-* `MXAO` is a Screen-Space Ambient Occlusion algorithm that can serve as a replacement for existing SSAO implementations in video games or to polish dated games that lack such a feature. Algorithmically similar to latest-gen tech like GTAO and CACAO, although it features some relatively unique features such as indirect illumination, smoothing filter for depth-derived normal maps, double-layer option at no additional cost and others. Highly configurable, easily tweakable.
+|Effect                                                      |Description                                                            |
+|----------------------------------------------------------|-----------------------------------------------------------------------|
+|MXAO|Screen-Space Ambient Occlusion effect, adds diffuse shadows under objects and inside cracks. MXAO also contains an indirect lighting solution, to compute a coarse first bounce of light similar to SSDO. It also features surface smoothing (surfaces in depth buffer appear blocky) and a double layer option to compute AO simultaneously at multiple scales with no added performance cost.|
+|ADOF|Depth of Field effect that adds an out-of-focus blur to the scene. The bokeh shapes are highly customizable and range from discs to polygons, allow for aperture vignetting and longitudinal chromatic aberration.|
+|Lightroom|qUINT Lightroom is a comprehensive set of color grading algorithms, modeled after industry applications such as Adobe Lightroom, Da Vinci Resolve and others. Aside from the common contrast/gamma/exposure adjustments, it can remove color tints, adjust temperature, adjust selective hues of the image and more.|
+|Bloom                         |Adds a glow around bright light sources. The effect is relatively basic, as bloom is mostly already present in many games. It also contains a simple eye adaptation effect to prevent over/underexposure.                                     |
+|Screen-Space Reflections|This effect adds glossy reflections to the scene. It cannot distinguish between different materials and as such will add reflections on everything, but in the right scenes, SSR can greatly improve realism.|
+|DELC Sharpen|Depth-enhanced local contrast sharpen is an image sharpen filter that leverages both depth and color to increase local contrast in desired areas, while avoiding many common artifacts usually found in sharpen algorithms, such as haloing around objects.|
+|Deband                       |High-performance banding and quantization artifact removal effect. It smoothens stripy color gradients.        |
 
-* `ADOF` This is a Depth of Field shader that aspires to give movie-quality bokeh blur to video games. It provides a very high quality DoF effect with artistic controls, ideal for both screenshots and gameplay. The bokeh discs it produces can be polygonal, circular and anything in between, it also features a disc occlusion feature (where the bokeh discs look like boolean intersection between 2 circles) and chromatic aberration at bokeh shape edges. This is done by a unique gradient-based algorithm that has a very low constant cost ignorant of scene complexity or blur settings. 
-
-* `Lightroom` is a highly comprehensive set of color grading filters, modeled after industry applications such as Adobe Lightroom, Da Vinci Resolve and others. It allows for miniscule adjustments of the scene colors with the ability to embed the current preset into a 3D LUT - a small image file that contains all color grading that the LUT.fx of the ReShade repository can easily load and apply. This both saves performance as reading a LUT is faster and it also protects your work as you only need to deploy the LUT along with your preset so you can keep your configuration private.
-
-* `Bloom` is a filter that adds a glow around bright screen areas, adapting to the current scene brightness. Most current games already contain such an effect but most older implementations are very simple. The shader runs as fast as 0.1ms / frame and due to a smart down- and upscale system it has a very small memory footprint.
-
-* `Screen-Space Reflections` adds reflections to the scene, using the data that is already available in the image. This is the spiritual successor of the "Reflective Bumpmapping" (RBM) in older ReShade shaders. It creates much more accurate reflections while not being quite as hard on performance. 
-As a Screen-Space technique, it suffers like all similar implementation from the fact that nothing outside the screen can be reflected. It also cannot distinguish between reflective and non-reflective surfaces, so it will just cover everything with a reflection layer. This restricts its usability to screenshots and certain games but where it is useful, it can completely transform the look of the scene.
-
-* `Depth-Enhanced Local Contrast Sharpen` is a new sharpening shader, which attempts to sharpen texture detail only while avoiding common sharpen artifacts such as halos around strong edges, excessive aliasing and flickering. It uses the depth buffer to enhance the detail and mask areas that would otherwise produce oversharpening.
-
-* `Debanding` is a very simple and intuitive, drop-in solution to rid the image of color banding and quantization artifacts. Fixes blocky color gradients and breaks up crushed texture detail.
-
+License
+------------------------
 
 ### Copyright (c) Pascal Gilcher / Marty McFly. All rights reserved.
