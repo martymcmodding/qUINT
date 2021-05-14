@@ -473,7 +473,7 @@ float4 PS_DoF_Main(in ADOF_VSOUT IN) : SV_Target0
 	float weightSum 		   = 1.0;
 	float CoC 			       = abs(BokehSum.w * 2.0 - 1.0);
 	float2 bokehRadiusScaled   = CoC2BlurRadius(CoC);
-	float nRings 			   = lerp(1.0,iADOF_ShapeQuality,saturate(CoC)) + (dot(IN.vpos.xy,1) % 2) * 0.5;
+	float nRings 			   = lerp(1.0,iADOF_ShapeQuality,saturate(CoC)); // + (dot(IN.vpos.xy,1) % 2) * 0.5;
 
 	if(bokehRadiusScaled.x < DISCRADIUS_RESOLUTION_BOUNDARY_LOWER * qUINT::PIXEL_SIZE.x) return BokehSum;
 
@@ -490,6 +490,9 @@ float4 PS_DoF_Main(in ADOF_VSOUT IN) : SV_Target0
 	BokehMax *= weightSum;
 #endif
 
+    int densityScale = max(1, 6 - iADOF_ShapeVertices);
+    if(IN.txcoord.x < 0.5) densityScale=1;
+
 	[loop]
     for (int iVertices = 0; iVertices < iADOF_ShapeVertices && iVertices < 10; iVertices++)
     {
@@ -497,9 +500,17 @@ float4 PS_DoF_Main(in ADOF_VSOUT IN) : SV_Target0
         for(float iRings = 1; iRings <= nRings && iRings < 26; iRings++)
         {
             [loop]
-            for(float iSamplesPerRing = 0; iSamplesPerRing < iRings && iSamplesPerRing < 26; iSamplesPerRing++)
+            for(float iSamplesPerRing = 0; iSamplesPerRing < iRings * densityScale && iSamplesPerRing < 26*2; iSamplesPerRing++)
             {
-                float2 sampleOffset = lerp(IN.offset0.xy,IN.offset0.zw,iSamplesPerRing/iRings);
+                float x = iSamplesPerRing/(iRings * densityScale);
+                float a = x * x * (3.0 - 2.0 * x);
+                float l = 2.55 * rcp(iADOF_ShapeVertices * iADOF_ShapeVertices * 0.4 - 1.0);
+                x = lerp(x, (1.0 + l) * x - a * l, fADOF_ShapeCurvatureAmount);
+
+                float2 sampleOffset = lerp(IN.offset0.xy,IN.offset0.zw, x);
+               
+               
+                if(IN.txcoord.x < 0.5) sampleOffset = lerp(IN.offset0.xy,IN.offset0.zw,iSamplesPerRing/(iRings * densityScale));
                 ShapeRoundness(sampleOffset,fADOF_ShapeCurvatureAmount);
 
                 float4 sampleBokeh 	= tex2Dlod(sCommonTex0, float4(IN.txcoord.zw + sampleOffset.xy * (bokehRadiusScaled * iRings),0,0));
