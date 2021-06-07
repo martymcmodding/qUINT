@@ -1,18 +1,13 @@
 /*=============================================================================
-
 	ReShade 4 effect file
     github.com/martymcmodding
-
 	Support me:
    		paypal.me/mcflypg
    		patreon.com/mcflypg
-
    	Advanced Depth of Field "ADoF"
     by Marty McFly / P.Gilcher
     part of qUINT shader library for ReShade 4
-
     Copyright (c) Pascal Gilcher / Marty McFly. All rights reserved.
-
 =============================================================================*/
 
 /*=============================================================================
@@ -127,6 +122,14 @@ uniform float fADOF_SmootheningAmount <
     ui_category = "Blur & Quality";
 > = 4.0;
 
+uniform int fADOF_GaussGamma <
+	ui_type = "drag";
+	ui_min = 0;
+	ui_max = 3;
+	ui_label = "DOF: Gaussian blur gammma";
+	ui_tooltip = "CUSTOM: Perform gaussian kernel in gamma corrected environment";
+> = 1.0;
+
 uniform float fADOF_BokehIntensity <
     ui_type = "drag";
     ui_min = 0.0;
@@ -135,6 +138,14 @@ uniform float fADOF_BokehIntensity <
     ui_tooltip = "Intensity of bokeh discs.";
     ui_category = "Bokeh";
 > = 0.3;
+
+uniform int fADOF_BokehGamma <
+	ui_type = "drag";
+	ui_min = 0;
+	ui_max = 2;
+	ui_label = "DOF: Bokeh gammma";
+	ui_tooltip = "CUSTOM: Perform Bokeh in gamma corrected environment (1 = correct, 2 = extra, may bleed";
+> = 1.0;
 
 uniform int iADOF_BokehMode <
     ui_type = "slider";
@@ -431,7 +442,9 @@ void PS_CoC(in ADOF_VSOUT IN, out float4 color : SV_Target0)
 		sampleCoord.xy = IN.txcoord.xy + sampleOffsets[i];
 
 		float3 sampleColor = tex2Dlod(qUINT::sBackBufferTex, sampleCoord).rgb;
-
+		for (int i = 0; i < fADOF_BokehGamma; i++) {
+			sampleColor.xyz = pow(sampleColor.xyz, 2.2);
+		}
         float4 sampleDepths = float4(GetLinearDepth(sampleCoord.xy + neighbourOffsets.xz),  //right
                                      GetLinearDepth(sampleCoord.xy - neighbourOffsets.xz),  //left
                                      GetLinearDepth(sampleCoord.xy + neighbourOffsets.zy),  //bottom
@@ -447,7 +460,9 @@ void PS_CoC(in ADOF_VSOUT IN, out float4 color : SV_Target0)
 
 	coccolor.rgb /= coccolor.a;
 	coccolor.rgb /= 1.0 - max(coccolor.r, max(coccolor.g, coccolor.b));
-
+	for (int i = 0; i < fADOF_BokehGamma; i++) {
+		coccolor.rgb = pow(coccolor.rgb, 0.45454545);
+	}
 	color.rgb = lerp(color.rgb, coccolor.rgb, saturate(coccolor.w * 8.0));
 	color.w = CircleOfConfusion(IN.txcoord.xy, 1);
     color.w = saturate(color.w * 0.5 + 0.5);
@@ -607,6 +622,9 @@ void PS_DoF_Gauss1(in ADOF_VSOUT IN, out float4 color : SV_Target0)
 		float currentOffset = 2.0 * iStep - 0.5; //Sample between texels to double blur width at no cost
 
 		float4 currentTap = tex2Dlod(sCommonTex0, float4(IN.txcoord.xy + blurAxisScaled.xy * currentOffset, 0, 0));
+		for (int i = 0; i < fADOF_GaussGamma; i++) {
+			currentTap.xyz = pow(currentTap.xyz, 2.2);
+		}
 		currentWeight *= saturate(abs(currentTap.a * 2.0 - 1.0) - CoC * 0.25); //bleed fix
 
 		gaussianSum += currentTap * currentWeight;
@@ -614,6 +632,9 @@ void PS_DoF_Gauss1(in ADOF_VSOUT IN, out float4 color : SV_Target0)
 	}
 
 	gaussianSum /= gaussianSumWeight;
+	for (int i = 0; i < fADOF_GaussGamma; i++) {
+		gaussianSum.xyz = pow(gaussianSum.xyz, 0.4545454545);
+	}
 
 	color.rgb = lerp(centerTap.rgb, gaussianSum.rgb, saturate(gaussianSumWeight));
     color.a = centerTap.a;
@@ -637,6 +658,9 @@ void PS_DoF_Gauss2(in ADOF_VSOUT IN, out float4 color : SV_Target0)
 		float currentOffset = 2.0 * iStep - 0.5; //Sample between texels to double blur width at no cost
 
 		float4 currentTap = tex2Dlod(sCommonTex1, float4(IN.txcoord.xy + blurAxisScaled.xy * currentOffset, 0, 0));
+		for (int i = 0; i < fADOF_GaussGamma; i++) {
+			currentTap.xyz = pow(currentTap.xyz, 2.2);
+		}
 		currentWeight *= saturate(abs(currentTap.a * 2.0 - 1.0) - CoC * 0.25); //bleed fix
 
 		gaussianSum += currentTap * currentWeight;
@@ -644,6 +668,9 @@ void PS_DoF_Gauss2(in ADOF_VSOUT IN, out float4 color : SV_Target0)
 	}
 
 	gaussianSum /= gaussianSumWeight;
+	for (int i = 0; i < fADOF_GaussGamma; i++) {
+		gaussianSum.xyz = pow(gaussianSum.xyz, 0.4545454545);
+	}
 
 	color.rgb = lerp(centerTap.rgb, gaussianSum.rgb, saturate(gaussianSumWeight));
     color.a = centerTap.a;
