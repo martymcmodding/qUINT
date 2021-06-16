@@ -335,9 +335,9 @@ void PS_Combine(in float4 pos : SV_Position, in float2 uv : TEXCOORD, out float4
 	
 	float adapt = tex2D(sMXBLOOM_BloomTexAdapt, 0).x + 1e-3; // we lerped to 0.5 earlier.
 	adapt *= 8;
+	bloom.rgb *= lerp(1, rcp(adapt), BLOOM_ADAPT_STRENGTH);
 
 	color.rgb += bloom.rgb;
-	color.rgb *= lerp(1, rcp(adapt), BLOOM_ADAPT_STRENGTH); 
 	color.rgb *= exp2(BLOOM_ADAPT_EXPOSURE);
 
 	color.rgb = pow(max(0,color.rgb), BLOOM_TONEMAP_COMPRESSION);
