@@ -455,12 +455,12 @@ void PS_CoC(in ADOF_VSOUT IN, out float4 color : SV_Target0)
 
 void unpack_hdr(inout float3 color)
 {
-    color = color * rcp((1.2001 - 0.2 * fADOF_BokehIntensity) - saturate(color));    
+    color = color * rcp(1.2 - saturate(color));    
 }
 
 void pack_hdr(inout float3 color)
 {
-    color = (1.2001 - 0.2 * fADOF_BokehIntensity) * color * rcp(color + 1.0);
+    color = 1.2 * color * rcp(color + 1.0);
 }
 
 float4 PS_DoF_Main(in ADOF_VSOUT IN) : SV_Target0
@@ -490,8 +490,6 @@ float4 PS_DoF_Main(in ADOF_VSOUT IN) : SV_Target0
 	BokehMax *= weightSum;
 #endif
 
-    unpack_hdr(BokehSum.rgb);
-
     int densityScale = max(1, 6 - iADOF_ShapeVertices);
 
 	[loop]
@@ -515,8 +513,6 @@ float4 PS_DoF_Main(in ADOF_VSOUT IN) : SV_Target0
                 float4 sampleBokeh 	= tex2Dlod(sCommonTex0, float4(IN.txcoord.zw + sampleOffset.xy * (bokehRadiusScaled * iRings),0,0));
                 float sampleWeight	= saturate(1e6 * (abs(sampleBokeh.a * 2.0 - 1.0) - CoC * (float)iRings) + 1.0);
 
-                unpack_hdr(sampleBokeh.rgb);
-
 #if (ADOF_OPTICAL_VIGNETTE_ENABLE != 0)
                 OpticalVignette(sampleOffset.xy * iRings/nRings, centerVec, sampleWeight);
 #endif
@@ -537,10 +533,6 @@ float4 PS_DoF_Main(in ADOF_VSOUT IN) : SV_Target0
 
    BokehSum /= weightSum;
 
-   pack_hdr(BokehSum.rgb);
-
-   return BokehSum;
-/*
    unpack_hdr(BokehSum.rgb);
    unpack_hdr(BokehMax.rgb);
 
@@ -578,7 +570,7 @@ float4 PS_DoF_Main(in ADOF_VSOUT IN) : SV_Target0
 
 	pack_hdr(ret.rgb);
 
-	return ret;*/
+	return ret;
 }
 
 void PS_DoF_Combine(in ADOF_VSOUT IN, out float4 color : SV_Target0)
