@@ -115,6 +115,9 @@ uniform float BLOOM_ADAPT_SPEED <
 	ui_label = "Bloom Scene Adaptation Speed";
 	ui_tooltip = "Eye adaptation data is created by exponential moving average with last frame data.\nThis parameter controls the adjustment speed.\nHigher parameters let the image adjust more quickly.";
 > = 2.0;
+uniform bool BLOOM_ADAPT_MODE <
+    ui_label = "Adapt bloom only";
+> = false;
 uniform float BLOOM_TONEMAP_COMPRESSION <
 	ui_type = "drag";
 	ui_min = 0.00; ui_max = 10.00;
@@ -336,9 +339,19 @@ void PS_Combine(in float4 pos : SV_Position, in float2 uv : TEXCOORD, out float4
 	float adapt = tex2D(sMXBLOOM_BloomTexAdapt, 0).x + 1e-3; // we lerped to 0.5 earlier.
 	adapt *= 8;
 
-	color.rgb += bloom.rgb;
-	color.rgb *= lerp(1, rcp(adapt), BLOOM_ADAPT_STRENGTH); 
-	color.rgb *= exp2(BLOOM_ADAPT_EXPOSURE);
+	//based on suggestion by https://github.com/KarlRamstedt
+	if(BLOOM_ADAPT_MODE)
+	{
+		bloom *= lerp(1, rcp(adapt), BLOOM_ADAPT_STRENGTH); 
+		bloom *= exp2(BLOOM_ADAPT_EXPOSURE);
+		color.rgb += bloom;
+	}
+	else 
+	{
+		color.rgb += bloom;
+		color.rgb *= lerp(1, rcp(adapt), BLOOM_ADAPT_STRENGTH); 
+		color.rgb *= exp2(BLOOM_ADAPT_EXPOSURE);
+	}	
 
 	color.rgb = pow(max(0,color.rgb), BLOOM_TONEMAP_COMPRESSION);
 	color.rgb = color.rgb / (1.0 + color.rgb);
