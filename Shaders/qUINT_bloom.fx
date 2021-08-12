@@ -47,14 +47,14 @@ uniform float BLOOM_SAT <
 	ui_label = "Bloom Saturation";
 	ui_tooltip = "Adjusts the color strength of the bloom effect";
 > = 2.0;
-/*
+
 uniform float BLOOM_DIRT <
 	ui_type = "drag";
 	ui_min = 0.00; ui_max = 2.00;
 	ui_label = "Lens Dirt Amount";
 	ui_tooltip = "Applies a dirt mask on top of the original bloom.";
 > = 0.0;
-*/
+
 uniform float BLOOM_LAYER_MULT_1 <
 	ui_type = "drag";
 	ui_min = 0.00; ui_max = 1.00;
