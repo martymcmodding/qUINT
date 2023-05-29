@@ -412,6 +412,13 @@ uniform bool LIGHTROOM_VIGNETTE_SHOW_RADII <
     ui_category = "Vignette";
 > = false;
 
+uniform float2 LIGHTROOM_VIGNETTE_OFFS <
+	ui_type = "drag";
+	ui_min = -1.00; ui_max = 1.00;
+	ui_label = "Vignette Center";	
+    ui_category = "Vignette";
+> = float2(0.0, 0.0);
+
 uniform float LIGHTROOM_VIGNETTE_RADIUS_INNER <
 	ui_type = "drag";
 	ui_min = 0.00; ui_max = 2.00;
@@ -460,9 +467,15 @@ uniform float LIGHTROOM_VIGNETTE_CURVE <
     ui_category = "Vignette";
 > = 1.00;
 
+uniform float3 LIGHTROOM_VIGNETTE_COLOR <
+  	ui_type = "color";
+  	ui_label="Vignette Color";
+	ui_category = "Vignette";
+> = float3(0.0, 0.0, 0.0);
+
 uniform int LIGHTROOM_VIGNETTE_BLEND_MODE <
 	ui_type = "combo";
-	ui_items = "Multiply\0Subtract\0Screen\0LumaPreserving\0";
+	ui_items = "Multiply\0Subtract\0Screen\0LumaPreserving\0Alpha Blend\0";
 	ui_tooltip = "Select between different ways of applying vignette";
     ui_label = "Vignette Blend Mode";
     ui_category = "Vignette";
@@ -635,15 +648,19 @@ float3 get_function_graph(float2 coords, float F, float3 origcolor, float thickn
 float3 get_vignette(float3 color, float2 uv, VignetteStruct v)
 {
 	float2 vign_uv = uv * 2 - 1;
+	vign_uv += LIGHTROOM_VIGNETTE_OFFS;
 	vign_uv -= vign_uv * v.ratio;
 	float vign_gradient = length(vign_uv);
 	float vignette = linearstep(v.radii.x, v.radii.y, vign_gradient);
 	vignette = pow(vignette, v.curve + 1e-6) * v.amount;
 
-	color = (v.blend == 0) ? color * saturate(1 - vignette) : color;
+	vignette = saturate(vignette);
+
+	color = (v.blend == 0) ? lerp(color, color * LIGHTROOM_VIGNETTE_COLOR, vignette) : color;
 	color = (v.blend == 1) ? saturate(color - vignette.xxx) : color;
 	color = (v.blend == 2) ? 1 - (1 - color) * (vignette + 1) : color;
 	color = (v.blend == 3) ? color * saturate(lerp(1 - vignette * 2 , 1, dot(color, 0.333))) : color;
+	color = (v.blend == 4) ? lerp(color, LIGHTROOM_VIGNETTE_COLOR, vignette) : color;	
 
 	//can't use the graph function here, as it's not a y=f(x) function (at least not a real one)
 	if(v.debug)
@@ -789,6 +806,20 @@ void PS_ProcessLUT(float4 vpos : SV_Position, float2 uv : TEXCOORD0, nointerpola
 	color.rgb = palette(hsl_color, Palette, huefactors);
 }
 
+float3 dither(in int2 pos, int bit_depth)
+{
+    const float2 magicdot = float2(0.75487766624669276, 0.569840290998);
+    const float3 magicadd = float3(0, 0.025, 0.0125) * dot(magicdot, 1);
+    
+    const float lsb = exp2(bit_depth) - 1;
+
+    float3 dither = frac(dot(pos, magicdot) + magicadd);   
+    dither = dither - 0.5;
+    dither *= 0.99; //so if added to source color, it just does not spill over to next bucket
+    dither /= lsb;
+    return dither;
+}
+
 void PS_ApplyLUT(float4 vpos : SV_Position, float2 uv : TEXCOORD0, nointerpolation float huefactors[7] : TEXCOORD1, out float4 color : SV_Target0)
 {
 	color = tex2D(qUINT::sBackBufferTex, uv);
@@ -796,7 +827,7 @@ void PS_ApplyLUT(float4 vpos : SV_Position, float2 uv : TEXCOORD0, nointerpolati
 	if(LIGHTROOM_ENABLE_LUT) 
 		draw_lut(color.rgb, vpos.xy, LIGHTROOM_LUT_TILE_SIZE, LIGHTROOM_LUT_TILE_COUNT, LIGHTROOM_LUT_SCROLL);
 
-	read_lut_4096x64(color.rgb);	
+	read_lut_4096x64(color.rgb);
 }
 
 void PS_DisplayStatistics(float4 vpos : SV_Position, float2 uv : TEXCOORD0, nointerpolation float huefactors[7] : TEXCOORD1, out float4 res : SV_Target0)

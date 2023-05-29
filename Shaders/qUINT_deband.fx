@@ -101,7 +101,7 @@ void PSMain(in VSOUT i, out float3 o : SV_Target0)
     {
      	float2 shift;
      	sincos(6.283 * 30.694 * dither.x, shift.x, shift.y);
-     	shift = shift * dither.x - 0.5;
+     	shift = shift * sqrt(dither.y);
 
      	float3 scatter = tex2Dlod(qUINT::sBackBufferTex, float4(i.uv + shift * 0.025 * SEARCH_RADIUS, 0, 0)).rgb;
      	float4 diff; 

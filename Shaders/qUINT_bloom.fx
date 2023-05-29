@@ -19,8 +19,8 @@
 	Preprocessor settings
 =============================================================================*/
 
-#ifndef SAMPLE_HQ
- #define SAMPLE_HQ 0
+#ifndef SAMPLE_HIGH_QUALITY
+ #define SAMPLE_HIGH_QUALITY 0
 #endif
 
 /*=============================================================================
@@ -181,7 +181,7 @@ float4 downsample(sampler2D tex, float2 tex_size, float2 uv)
 	offset_uv.x = uv.x + kernel_small_offsets.x;
 	kernel_small += tex2Dlod(tex, offset_uv); //+-
 
-#if SAMPLE_HQ == 0
+#if SAMPLE_HIGH_QUALITY == 0
 	return kernel_center / 5.0	
 	      + kernel_small / 5.0;
 #else
@@ -237,7 +237,7 @@ float3 Upsample(sampler2D tex, float2 texel_size, float2 uv)
 	offset_uv.x -= kernel_small_offsets.z;
 	kernel_small_1 += tex2Dlod(tex, offset_uv).rgb; //-+
 
-#if SAMPLE_HQ == 0
+#if SAMPLE_HIGH_QUALITY == 0
 	return kernel_center / 5.0
 	     + kernel_small_1 / 5.0;
 #else
