@@ -160,9 +160,9 @@ uniform float MXAO_FADE_DEPTH_END <
 > = 0.4;
 
 uniform int MXAO_DEBUG_VIEW_ENABLE <
-	ui_type = "combo";
+	ui_type = "radio";
     ui_label = "Enable Debug View";
-	ui_items = "None\0AO/IL channel\0Normal vectors\0";
+	ui_items = "None\0AO channel\0IL channel\0AO+IL channel\0Normal vectors\0";
 	ui_tooltip = "Different debug outputs";
     ui_category = "Debug";
 > = 0;
@@ -620,15 +620,25 @@ void PS_SpatialFilter2(MXAO_VSOUT MXAO, out float4 color : SV_Target0)
         color.rgb = sqrt(color.rgb);
     }
 
-    if(MXAO_DEBUG_VIEW_ENABLE == 1)
+    switch(MXAO_DEBUG_VIEW_ENABLE)
     {
-        color.rgb = max(0.0, 1.0 - ssil_ssao.www + ssil_ssao.xyz);
-        color.rgb *= (MXAO_ENABLE_IL != 0) ? 0.5 : 1.0;
-    }
-    else if(MXAO_DEBUG_VIEW_ENABLE == 2)
-    {      
-        color.rgb = tex2D(sMXAO_NormalTex, MXAO.uv.xy).xyz;
-        color.b = 1-color.b; //looks nicer
+        case 1:
+            ssil_ssao.xyz = 0.0;
+            color.rgb = max(0.0, 1.0 - ssil_ssao.www + ssil_ssao.xyz);
+            // color.rgb *= 1.0;
+            break;
+        case 2:
+            color.rgb = max(0.0, 1.0 + ssil_ssao.xyz);
+            color.rgb *= 0.5;
+            break;
+        case 3:
+            color.rgb = max(0.0, 1.0 - ssil_ssao.www + ssil_ssao.xyz);
+            color.rgb *= (MXAO_ENABLE_IL != 0) ? 0.5 : 1.0;
+            break;
+        case 4:
+            color.rgb = tex2D(sMXAO_NormalTex, MXAO.uv.xy).xyz;
+            color.b = 1-color.b; //looks nicer
+            break;
     }
        
     color.a = 1.0;        
